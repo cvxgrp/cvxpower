@@ -3,17 +3,11 @@
 \usepackage{fullpage}
 \input defs.tex
 
-\title{Optimal Current Waveforms for Brushless Permanent Magnet Motors}
+\title{Dynamic Energy Management}
 \author{
 Stephen Boyd\thanks{
 Electrical Engineering Department, Stanford University. 
 \texttt{boyd@stanford.edu}}
-\and Nicholas Moehle\thanks{
-Mechanical Engineering Department, Stanford University. 
-\texttt{moehle@stanford.edu}}
-\and Matt Wytock\thanks{
-Electrical Engineering Department, Stanford University. 
-\texttt{mwytock@stanford.edu}}
 }
 \date{\today}
 \bibliographystyle{alpha}
@@ -25,9 +19,9 @@ Electrical Engineering Department, Stanford University.
 
 There are many optimizations that must occur
 to effectively manage the electric power grid,
-including Security Constrained Unit Commitment (SCUC),
-Security Constrained Optimal Power Flow (SCOPF),
-Economic Dispatch, Loss Minimization, Reactive Power Compensation, et. al.
+including Security-Constrained Unit Commitment (SCUC),
+Security-Constrained Optimal Power Flow (SCOPF),
+Economic Dispatch, Loss Minimization, Reactive Power Compensation, et.~al.
 As the size and complexity of these optimization problems grow,
 the need to solve these problems in a timely manner
 with a larger number of features and data sets
@@ -53,7 +47,7 @@ The following section describes more specific activities associated across each 
 In the first year,
 we will concentrate on developing a foundational open source Python package
 for dynamic energy management,
-following the abstract ideas laid out in [Kraning et al].
+following the abstract ideas laid out in \cite{kraning2014dynamic}.
 This research will focus on extending CVXPY in the following manner:
 \begin{enumerate}
 \item \emph{Adding Additional Classes:}
@@ -79,9 +73,7 @@ we may leverage Alloy or TLA+ to formally analyze the algorithm for correctness
 and better understand boundary conditions.
 \end{enumerate}
 
-\section{Year One Research Scope}
-
-
+\paragraph{Year One Research Scope.}
 \begin{enumerate}
 \item \emph{Convex Problems Only:}
 Year one work will focus entirely on convex problems,
@@ -109,12 +101,11 @@ to help inform further evaluation of ADMM within a power optimization context.
 
 \end{enumerate}
 
-\section{Year Two}
+\subsection{Year Two}
 
 Year two will extend the foundational work created in year one
 to potentially include exploration of the 
 following areas and to help further operationalize ADMM:
-
 \begin{itemize}
 \item \emph{Convex Relaxation:} 
 finding solutions when including non-convex devices and objectives, 
@@ -140,13 +131,13 @@ by possibly scheduling messages on different time scales between systems of simi
 
 The following section outlines additional areas of investigation
 for operationalizing the ADMM algorithm.
-These items are considered out of scope for this initial two year effort:
+These items are considered beyond the scope of this initial two-year effort:
 
 \begin{enumerate}
 \item \emph{Incentive Compatible Protocols}
 examination of secure and reliable behavior of nodes to
 ensure cooperative behavior,
-including non-cooperative / antagonistic devices or bad behavior
+including non-cooperative or antagonistic devices or bad behavior
 detection and counter measures to ensure proper system behavior.
 
 \item \emph{Local Stopping Criteria}
@@ -163,7 +154,7 @@ We will develop a framework for running such a system in model predictive contro
 mode, using predictions of future values (loads, prices, etc.) over a horizon.
 
 \item
-We will publish the code under github,
+We will publish the code under GitHub,
 with full documentation. We will also prepare a paper to be published on the project.
 
 \item 
@@ -172,15 +163,20 @@ ensure that the code we write can be run in their environment,
 and get general feedback on the organization with updates
 occurring---we will make every effort to touch base on a monthly basis.
 
-\item Travel---Stephen Boyd and the assigned graduate student
+\item \emph{Travel:} Stephen Boyd and the assigned graduate student
 will travel to MISO once each year and the assigned MISO technical resources travel
 to Stanford a minimum of twice each year.
 
-\item Exit Criteria---at the end of the first year,
+\item \emph{Exit Criteria:} at the end of the first year,
 either Stanford or MISO Energy may decide to
 terminate this research agreement for any reason.
 
-\item Payment---MISO will pay for each year in whole at the start of that year.
+\item \emph{Payment:} MISO will pay for each year in whole at the start of that year.
 \end{enumerate}
 
+\bibliography{proposal}
+
+
 \end{document}
+
+

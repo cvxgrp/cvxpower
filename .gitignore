@@ -1,0 +1,12 @@
+gitignore/*
+*~
+*.log
+*.dvi
+*.ps
+*.swp
+*.toc
+*.blg
+*.aux
+*.o
+*.swp
+*.swo
