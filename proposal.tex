@@ -1,0 +1,186 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx,psfrag,amsmath,caption,subcaption}
+\usepackage{fullpage}
+\input defs.tex
+
+\title{Optimal Current Waveforms for Brushless Permanent Magnet Motors}
+\author{
+Stephen Boyd\thanks{
+Electrical Engineering Department, Stanford University. 
+\texttt{boyd@stanford.edu}}
+\and Nicholas Moehle\thanks{
+Mechanical Engineering Department, Stanford University. 
+\texttt{moehle@stanford.edu}}
+\and Matt Wytock\thanks{
+Electrical Engineering Department, Stanford University. 
+\texttt{mwytock@stanford.edu}}
+}
+\date{\today}
+\bibliographystyle{alpha}
+
+\begin{document}
+\maketitle
+
+\section{Background}
+
+There are many optimizations that must occur
+to effectively manage the electric power grid,
+including Security Constrained Unit Commitment (SCUC),
+Security Constrained Optimal Power Flow (SCOPF),
+Economic Dispatch, Loss Minimization, Reactive Power Compensation, et. al.
+As the size and complexity of these optimization problems grow,
+the need to solve these problems in a timely manner
+with a larger number of features and data sets
+becomes increasing challenging.
+Alternating Direction Method of Multipliers (ADMM)
+is an algorithm that utilizes a decomposition coordination method
+whereby a large problem is decomposed into small local sub-problems
+that are coordinated in a manner that solves the larger global solution.
+ADMM blends the benefits of Dual Decomposition methods
+and Augmented Lagrangian Methods (ALM)
+to solve large scale optimization problems using a scalable approach.
+This research work is focused on operationalizing the ADMM algorithm
+to support production electric power management.
+
+\section{Research Outline}
+The proposed research is split across two years,
+with the first year constraining the scope to a simplified
+optimal power flow problem (convex only)
+and extending the problem in complexity and scope in year two.
+The following section describes more specific activities associated across each year:
+
+\subsection{Year One}
+In the first year,
+we will concentrate on developing a foundational open source Python package
+for dynamic energy management,
+following the abstract ideas laid out in [Kraning et al].
+This research will focus on extending CVXPY in the following manner:
+\begin{enumerate}
+\item \emph{Adding Additional Classes:}
+We will carefully define the critical classes,
+including generators, storage devices, transmission lines,
+basic loads, smart loads including deferrable loads, curtailable loads, HVAC loads,
+and connections to other sources with time varying prices and availability.
+We will include several classes of green energy sources, including wind and solar,
+possibly coupled with local storage and/or generators.
+
+\item \emph{Adding Additional Methods:}
+We will define the critical methods used to connect device objects,
+optimize energy consumption and generation over a time interval,
+retrieve time varying prices at a bus, and so on.
+
+\item \emph{Benchmarking:}
+MISO will work to benchmark and analyze the scalability of the algorithm
+in our labs---we will leverage the resulting information to help inform further analysis.
+
+\item \emph{Algorithm Correctness:}
+Time permitting;
+we may leverage Alloy or TLA+ to formally analyze the algorithm for correctness
+and better understand boundary conditions.
+\end{enumerate}
+
+\section{Year One Research Scope}
+
+
+\begin{enumerate}
+\item \emph{Convex Problems Only:}
+Year one work will focus entirely on convex problems,
+since in this case the optimization is clear,
+and we can rely on CVXPY as the base optimization layer.
+
+\item \emph{Optimal Power Flow:}
+Year one will focus on power flow,
+and not the more traditional voltage and current phasors,
+or real and reactive power flows.
+This model can be made to include many realistic power systems,
+and will include, for example, variable generator cost,
+generator minimum and maximum powers,
+various types of smart loads, DC and AC transmission line losses,
+storage energy and power limits,
+generator ramp rate limits.
+Although the focus of this year one research is centered on Optimal Power Flow,
+MISO will also be applying and evaluating ADMM / CVXPY
+against a simplified (linearized) Security Constrained
+Unit Commitment (SCUC) problem set as well.
+Although we do not expect any direct support for
+this parallel SCUC problem research,
+we anticipate some occasional advisory input and guidance
+to help inform further evaluation of ADMM within a power optimization context.
+
+\end{enumerate}
+
+\section{Year Two}
+
+Year two will extend the foundational work created in year one
+to potentially include exploration of the 
+following areas and to help further operationalize ADMM:
+
+\begin{itemize}
+\item \emph{Convex Relaxation:} 
+finding solutions when including non-convex devices and objectives, 
+including for example on/off loads and generators,
+AC power flow constraints on loop networks, 
+and other non-convexities.
+
+\item \emph{Closed Loop Control:} 
+adjusting schedules in response to external disturbances adapting the
+solution across an evolving time horizon by incorporating new information as it becomes
+available.
+
+\item \emph{Security Constraints:} 
+adding a set of contingencies for devices connected to the electrical
+power network for operation under nominal and contingent operations
+ 
+\item \emph{Hierarchical Extensions:}
+extend the model to support the natural hierarchy of the power grid 
+by possibly scheduling messages on different time scales between systems of similar hierarchy.
+\end{itemize}
+
+\subsection{Future Extensions}
+
+The following section outlines additional areas of investigation
+for operationalizing the ADMM algorithm.
+These items are considered out of scope for this initial two year effort:
+
+\begin{enumerate}
+\item \emph{Incentive Compatible Protocols}
+examination of secure and reliable behavior of nodes to
+ensure cooperative behavior,
+including non-cooperative / antagonistic devices or bad behavior
+detection and counter measures to ensure proper system behavior.
+
+\item \emph{Local Stopping Criteria}
+current stopping criteria require global device coordination---this
+would explore a decentralized approach leveraging gossip or epidemic algorithms, letting
+individual devices decide stopping criteria and values of $\rho$.
+\end{enumerate}
+
+\section{Approach}
+
+\begin{enumerate}
+\item 
+We will develop a framework for running such a system in model predictive control (MPC)
+mode, using predictions of future values (loads, prices, etc.) over a horizon.
+
+\item
+We will publish the code under github,
+with full documentation. We will also prepare a paper to be published on the project.
+
+\item 
+We will work with MISO Energy technical contacts to keep them in the loop,
+ensure that the code we write can be run in their environment,
+and get general feedback on the organization with updates
+occurring---we will make every effort to touch base on a monthly basis.
+
+\item Travel---Stephen Boyd and the assigned graduate student
+will travel to MISO once each year and the assigned MISO technical resources travel
+to Stanford a minimum of twice each year.
+
+\item Exit Criteria---at the end of the first year,
+either Stanford or MISO Energy may decide to
+terminate this research agreement for any reason.
+
+\item Payment---MISO will pay for each year in whole at the start of that year.
+\end{enumerate}
+
+\end{document}
