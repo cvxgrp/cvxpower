@@ -50,13 +50,15 @@ associated across each year.
 In the first year
 we will concentrate on developing a foundational open source 
 Python package for dynamic energy management,
-following the abstract ideas laid out in \cite{kraning2014dynamic},
+following the abstract ideas laid out in 
+\cite{kraning2014dynamic},
 and focussing entirely on the convex case.
 We hope that the package will support multiple types of 
 dynamic energy optimization problems, including day-ahead 15 minute 
 planning, but also including hydro resource management, minute-by-minute
 planning, and even optimal management of a hybrid vehicle.
-This package will be based on CVXPY \cite{cvxpy},
+This package will be based on CVXPY 
+\cite{cvxpy},
 a open source convex optimization package in Python.
 \begin{enumerate}
 \item \emph{Defining the classes and methods.}  The first task is to 
@@ -136,9 +138,12 @@ including for example on/off loads and generators,
 AC power flow constraints on loop networks, 
 and other non-convexities.
 \item \emph{Closed loop control.} 
-We will explore using receding horizon control (RHC) \cite{rhc} or
-model predictive control (MPC) \cite{mpc} to adapt
-schedules in response to external disturbances adapting the
+We will explore using receding horizon control (RHC) 
+\cite{mattingley2011receding}
+\cite{mattingley2009automatic}
+or model predictive control (MPC) 
+\cite{wang2010fast}
+to adapt schedules in response to external disturbances adapting the
 solution across an evolving time horizon by incorporating new 
 information as it becomes available.
 \item \emph{Security constraints.} 
