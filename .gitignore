@@ -10,3 +10,4 @@ gitignore/*
 *.o
 *.swp
 *.swo
+*.pyc
