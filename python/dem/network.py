@@ -8,7 +8,7 @@ import cvxpy as cvx
 
 class Terminal(object):
     def __init__(self):
-        self.variable = cvx.Variable(1)
+        self.power = cvx.Variable(1)
 
 
 class Net(object):
@@ -23,33 +23,17 @@ class Device(object):
         self.constraints = []
 
 
-class Network(object):
-    def __init__(self):
-        self.devices = []
-        self.nets = []
+def optimize(devices, nets):
+    obj = cvx.Minimize(sum(d.cost for d in devices))
 
-    def add_device(self, device):
-        self.devices.append(device)
+    # Device constraints
+    constrs = []
+    for device in devices:
+        constrs.extend(device.constraints)
 
-    def add_net(self, *args):
-        net = Net(args)
-        self.nets.append(net)
-        return net
+    # Net constraints
+    for net in nets:
+        constrs.append(sum(t.power for t in net.terminals) == 0)
 
-    def optimize(self):
-        # Objective: minimize device cost
-        obj = cvx.Minimize(sum(d.cost for d in self.devices))
-
-        # Device constraints
-        constrs = []
-        for device in self.devices:
-            constrs.extend(device.constraints)
-
-        # Net constraints
-        for net in self.nets:
-            constrs.append(sum(t.variable for t in net.terminals) == 0)
-
-        prob = cvx.Problem(obj, constrs)
-        return prob.solve(verbose=True)
-
-        # TODO(mwytock): Get dual variables
+    prob = cvx.Problem(obj, constrs)
+    return prob.solve(verbose=True)
