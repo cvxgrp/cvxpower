@@ -1,3 +1,5 @@
+.ipynb_checkpoints
+
 gitignore/*
 *~
 *.log
