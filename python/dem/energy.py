@@ -17,46 +17,57 @@ class Generator(Device):
             alpha=0,
             beta=0):
         super(Generator, self).__init__([Terminal()], name)
+        self.p_min = p_min
+        self.p_max = p_max
+        self.alpha = alpha
+        self.beta = beta
 
+    @property
+    def cost(self):
         p = self.terminals[0].power
-        self.cost = alpha*cvx.square(p) - beta*p
-        self.constraints = [
-            -p <= p_max,
-            -p >= p_min
+        return self.alpha*cvx.square(p) - self.beta*p
+
+    @property
+    def constraints(self):
+        return [
+            -self.terminals[0].power <= self.p_max,
+            -self.terminals[0].power >= self.p_min
         ]
 
 
 class Load(Device):
     """Fixed load."""
-    def __init__(self, name=None, p=None, curtailable_alpha=None):
+    def __init__(self, name=None, p=None):
         super(Load, self).__init__([Terminal()], name)
-        self.constraints = [self.terminals[0].power == p]
+        self.p = p
+
+    @property
+    def constraints(self):
+        return [self.terminals[0].power == self.p]
 
 
 class CurtailableLoad(Device):
     """Curtailable load."""
     def __init__(self, name=None, p=None, alpha=None):
         super(CurtailableLoad, self).__init__([Terminal()], name)
-        self.cost = alpha*cvx.pos(p - self.terminals[0].power)
+        self.p = p
+        self.alpha = alpha
 
+    @property
+    def cost(self):
+        return self.alpha*cvx.pos(self.p - self.terminals[0].power)
 
 
 class TransmissionLine(Device):
     """Transmission line."""
     def __init__(self, name=None, p_max=None):
         super(TransmissionLine, self).__init__([Terminal(), Terminal()], name)
+        self.p_max = p_max
 
-        self.constraints = [
-            self.loss == 0,
-            cvx.abs(self.power_flow) <= p_max
+    @property
+    def constraints(self):
+        return [
+            self.terminals[0].power + self.terminals[1].power == 0,
+            (cvx.abs((self.terminals[0].power - self.terminals[1].power)/2)
+             <= self.p_max)
         ]
-
-    @property
-    def loss(self):
-        """Loss in the line."""
-        return self.terminals[0].power + self.terminals[1].power
-
-    @property
-    def power_flow(self):
-        """Power flow between terminals."""
-        return (self.terminals[0].power - self.terminals[1].power)/2
