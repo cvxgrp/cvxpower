@@ -2,16 +2,22 @@
 
 import cvxpy as cvx
 
+
+class NetworkError(Exception):
+    pass
+
+
 class Terminal(object):
-    def __init__(self):
-        self.power = cvx.Variable(1)
+    pass
 
 
 class Net(object):
     def __init__(self, terminals, name=None):
         self.name = "Net" if name is None else name
         self.terminals = terminals
-        self.constraint = sum(t.power for t in terminals) == 0
+
+    def init_constraint(self):
+        self.constraint = sum(t.power for t in self.terminals) == 0
 
     @property
     def price(self):
@@ -31,6 +37,17 @@ class Device(object):
     def constraints(self):
         return []
 
+    def init_variables(self, time_horizon):
+        for terminal in self.terminals:
+            terminal.power = cvx.Variable(time_horizon)
+
+    def optimize(self, time_horizon=1):
+        self.init_variables(time_horizon)
+        prob = cvx.Problem(cvx.Minimize(self.cost), self.constraints)
+        prob.solve()
+        if prob.status != cvx.OPTIMAL:
+            raise NetworkError("optimization failed: " + prob.status)
+
 
 class Group(Device):
     def __init__(self, devices, nets, terminals=[], name=None):
@@ -47,9 +64,12 @@ class Group(Device):
         return ([constr for d in self.devices for constr in d.constraints] +
                 [n.constraint for n in self.nets])
 
-    def optimize(self):
-        prob = cvx.Problem(cvx.Minimize(self.cost), self.constraints)
-        return prob.solve()
+    def init_variables(self, time_horizon):
+        for device in self.devices:
+            device.init_variables(time_horizon)
+
+        for net in self.nets:
+            net.init_constraint()
 
     def print_results(self):
         print "%-20s %10s" % ("Terminal", "Power")

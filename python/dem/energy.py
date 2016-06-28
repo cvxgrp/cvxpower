@@ -1,14 +1,12 @@
-"""Device models for dynamic energy management.
-
-See Section 3 of DEM paper for details.
-"""
+"""Device models for dynamic energy management."""
 
 import cvxpy as cvx
 
 from dem.network import Device, Terminal
 
+
 class Generator(Device):
-    """Generator with quadratic cost."""
+    """Generator with quadratic cost, ramp constraints."""
     def __init__(
             self,
             name=None,
@@ -29,21 +27,28 @@ class Generator(Device):
 
     @property
     def constraints(self):
+        # TODO(mwytock): Add ramp constraints
+
         return [
             -self.terminals[0].power <= self.p_max,
             -self.terminals[0].power >= self.p_min
         ]
 
 
-class Load(Device):
+class FixedLoad(Device):
     """Fixed load."""
     def __init__(self, name=None, p=None):
-        super(Load, self).__init__([Terminal()], name)
+        super(FixedLoad, self).__init__([Terminal()], name)
         self.p = p
 
     @property
     def constraints(self):
         return [self.terminals[0].power == self.p]
+
+
+class ThermalLoad(Device):
+    """Thermal load."""
+    pass
 
 
 class CurtailableLoad(Device):
@@ -56,6 +61,11 @@ class CurtailableLoad(Device):
     @property
     def cost(self):
         return self.alpha*cvx.pos(self.p - self.terminals[0].power)
+
+
+class DeferrableLoad(Device):
+    """Deferrable load."""
+    pass
 
 
 class TransmissionLine(Device):
@@ -71,3 +81,8 @@ class TransmissionLine(Device):
             (cvx.abs((self.terminals[0].power - self.terminals[1].power)/2)
              <= self.p_max)
         ]
+
+
+class Storage(Device):
+    """Storage device."""
+    pass
