@@ -1,6 +1,7 @@
 """Device models for dynamic energy management."""
 
 import cvxpy as cvx
+import numpy as np
 
 from dem.network import Device, Terminal
 
@@ -23,7 +24,7 @@ class Generator(Device):
     @property
     def cost(self):
         p = self.terminals[0].power
-        return self.alpha*cvx.square(p) - self.beta*p
+        return self.alpha*cvx.sum_squares(p) - self.beta*cvx.sum_entries(p)
 
     @property
     def constraints(self):

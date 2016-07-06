@@ -149,3 +149,27 @@ def test_vary_parameters():
     np.testing.assert_allclose(net1.price, 89.9965, rtol=1e-4)
     np.testing.assert_allclose(net2.price, 89.9965, rtol=1e-4)
     np.testing.assert_allclose(net3.price,  2.2009, rtol=1e-4)
+
+# For dynamic tests
+N = 10
+p_load = (np.sin(np.pi*np.arange(N)/N) + 1e-2).reshape(-1,1)
+
+def test_dynamic_load():
+    load = FixedLoad(p=p_load)
+    gen = Generator(p_max=1000, alpha=100, beta=100)
+    net = Net([load.terminals[0], gen.terminals[0]])
+
+    network = Group([load, gen], [net])
+    network.optimize(time_horizon=N)
+    np.testing.assert_allclose(load.terminals[0].power.value,  p_load, atol=1e-4)
+    np.testing.assert_allclose( gen.terminals[0].power.value, -p_load, atol=1e-4)
+    np.testing.assert_allclose(net.price, p_load*200 + 100, rtol=1e-4)
+
+def test_storage():
+    pass
+
+def test_deferrable_load():
+    pass
+
+def test_thermal_load():
+    pass

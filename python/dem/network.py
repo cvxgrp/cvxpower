@@ -1,7 +1,7 @@
 """Network of devices."""
 
 import cvxpy as cvx
-
+import matplotlib.pyplot as plt
 
 class NetworkError(Exception):
     pass
@@ -84,3 +84,20 @@ class Group(Device):
         print "%-20s %10s" % ("---", "-----")
         for net in self.nets:
             print "%-20s %10.4f" % (net.name, net.price)
+
+    def plot_results(self):
+        fig, ax = plt.subplots(nrows=2, ncols=1)
+
+        ax[0].set_ylabel("power")
+        for device in self.devices:
+            for i, terminal in enumerate(device.terminals):
+                device_terminal = "%s[%d]" % (device.name, i)
+                ax[0].plot(terminal.power.value, label=device_terminal)
+        ax[0].legend()
+
+        ax[1].set_ylabel("price")
+        for net in self.nets:
+            ax[1].plot(net.price, label=net.name)
+        ax[1].legend()
+
+        return ax
