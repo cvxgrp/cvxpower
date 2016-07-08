@@ -93,11 +93,11 @@ class Group(Device):
             for i, terminal in enumerate(device.terminals):
                 device_terminal = "%s[%d]" % (device.name, i)
                 ax[0].plot(terminal.power.value, label=device_terminal)
-        ax[0].legend()
+        ax[0].legend(loc="best")
 
         ax[1].set_ylabel("price")
         for net in self.nets:
             ax[1].plot(net.price, label=net.name)
-        ax[1].legend()
+        ax[1].legend(loc="best")
 
         return ax

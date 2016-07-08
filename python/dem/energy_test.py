@@ -182,7 +182,7 @@ def test_storage():
 
 def test_deferrable_load():
     load = FixedLoad(p=p_load)
-    gen = Generator(p_max=1000, alpha=100, beta=100)
+    gen = Generator(p_max=2, alpha=100, beta=100)
     deferrable = DeferrableLoad(t_start=5, E=0.5, p_max=0.1)
 
     net = Net([load.terminals[0], gen.terminals[0], deferrable.terminals[0]])
@@ -193,9 +193,9 @@ def test_thermal_load():
     T_ambient = (np.sin(np.pi*np.arange(N)/N) + 1e-2).reshape(-1,1)**2*50+50
 
     load = FixedLoad(p=p_load)
-    gen = Generator(p_max=1000, alpha=100, beta=100)
+    gen = Generator(p_max=2, alpha=100, beta=100)
     thermal = ThermalLoad(
-        T_init=60, T_ambient=T_ambient, T_min=None, T_max=None,
+        T_init=60, T_ambient=T_ambient, T_max=90,
         p_max=0.1, conduct_coeff=0.1, efficiency=0.95, capacity=1)
 
     net = Net([load.terminals[0], gen.terminals[0], thermal.terminals[0]])

@@ -156,4 +156,5 @@ class Storage(Device):
             self.terminals[0].power >= self.p_min,
             self.terminals[0].power <= self.p_max,
             self.energy <= self.E_max,
+            self.energy >= 0,
         ]
