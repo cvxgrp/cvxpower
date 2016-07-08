@@ -3,6 +3,9 @@ from dem import *
 
 import numpy as np
 
+#
+# Static test cases
+#
 
 def test_hello_world():
     load = FixedLoad(p=100)
@@ -150,13 +153,16 @@ def test_vary_parameters():
     np.testing.assert_allclose(net2.price, 89.9965, rtol=1e-4)
     np.testing.assert_allclose(net3.price,  2.2009, rtol=1e-4)
 
-# For dynamic tests
+#
+# Dynamic test cases
+#
+
 N = 10
 p_load = (np.sin(np.pi*np.arange(N)/N) + 1e-2).reshape(-1,1)
 
 def test_dynamic_load():
     load = FixedLoad(p=p_load)
-    gen = Generator(p_max=1000, alpha=100, beta=100)
+    gen = Generator(p_max=2, alpha=100, beta=100)
     net = Net([load.terminals[0], gen.terminals[0]])
 
     network = Group([load, gen], [net])
@@ -166,10 +172,32 @@ def test_dynamic_load():
     np.testing.assert_allclose(net.price, p_load*200 + 100, rtol=1e-4)
 
 def test_storage():
-    pass
+    load = FixedLoad(p=p_load)
+    gen = Generator(p_max=2, alpha=100, beta=100)
+    storage = Storage(p_max=0.1, E_max=0.5)
+
+    net = Net([load.terminals[0], gen.terminals[0], storage.terminals[0]])
+    network = Group([load, gen, storage], [net])
+    network.optimize(time_horizon=N)
 
 def test_deferrable_load():
-    pass
+    load = FixedLoad(p=p_load)
+    gen = Generator(p_max=1000, alpha=100, beta=100)
+    deferrable = DeferrableLoad(t_start=5, E=0.5, p_max=0.1)
+
+    net = Net([load.terminals[0], gen.terminals[0], deferrable.terminals[0]])
+    network = Group([load, gen, deferrable], [net])
+    network.optimize(time_horizon=N)
 
 def test_thermal_load():
-    pass
+    T_ambient = (np.sin(np.pi*np.arange(N)/N) + 1e-2).reshape(-1,1)**2*50+50
+
+    load = FixedLoad(p=p_load)
+    gen = Generator(p_max=1000, alpha=100, beta=100)
+    thermal = ThermalLoad(
+        T_init=60, T_ambient=T_ambient, T_min=None, T_max=None,
+        p_max=0.1, conduct_coeff=0.1, efficiency=0.95, capacity=1)
+
+    net = Net([load.terminals[0], gen.terminals[0], thermal.terminals[0]])
+    network = Group([load, gen, thermal], [net])
+    network.optimize(time_horizon=N)

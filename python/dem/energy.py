@@ -75,9 +75,12 @@ class ThermalLoad(Device):
         constrs = [
             self.terminals[0].power <= self.p_max,
             self.terminals[0].power >= 0,
-            self.T <= self.T_max,
-            self.T >= self.T_min,
         ]
+
+        if self.T_max is not None:
+            constrs += [self.T <= self.T_max]
+        if self.T_min is not None:
+            constrs += [self.T >= self.T_min]
 
         for i in range(N):
             Tprev = self.T[i-1] if i else self.T_init
@@ -103,18 +106,18 @@ class CurtailableLoad(Device):
 
 class DeferrableLoad(Device):
     """Deferrable load."""
-    def __init__(self, name=None, t_start=0, t_end=None, p_total=0, p_max=None):
+    def __init__(self, name=None, t_start=0, t_end=None, E=0, p_max=None):
         super(DeferrableLoad, self).__init__([Terminal()], name)
         self.t_start = t_start
         self.t_end = t_end
-        self.p_total = p_total
+        self.E = E
         self.p_max = p_max
 
     @property
     def constraints(self):
         idx = slice(self.t_start, self.t_end)
         return [
-            cvx.sum_entries(self.terminals[0].power[idx]) >= self.p_total,
+            cvx.sum_entries(self.terminals[0].power[idx]) >= self.E,
             self.terminals[0].power >= 0,
             self.terminals[0].power <= self.p_max,
         ]
@@ -150,7 +153,7 @@ class Storage(Device):
         cumsum = np.tril(np.ones((N,N)), 0)
         self.energy = self.E_init + cumsum*self.terminals[0].power
         return [
-            self.terminals[0].power >= p_min,
-            self.terminals[0].power <= p_max,
+            self.terminals[0].power >= self.p_min,
+            self.terminals[0].power <= self.p_max,
             self.energy <= self.E_max,
         ]
