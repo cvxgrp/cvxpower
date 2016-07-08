@@ -49,7 +49,44 @@ class FixedLoad(Device):
 
 class ThermalLoad(Device):
     """Thermal load."""
-    pass
+    def __init__(self, name=None,
+                 T_init=None, T_min=None, T_max=None, T_ambient=None,
+                 p_max=None,
+                 conduct_coeff=None,
+                 efficiency=None,
+                 capacity=None):
+        super(ThermalLoad, self).__init__([Terminal()], name)
+        self.T_init = T_init,
+        self.T_min = T_min
+        self.T_max = T_max
+        self.T_ambient = T_ambient
+        self.p_max = p_max
+        self.conduct_coeff = conduct_coeff
+        self.efficiency = efficiency
+        self.capacity = capacity
+
+    @property
+    def constraints(self):
+        alpha = self.conduct_coeff / self.capacity
+        beta = self.efficiency / self.capacity
+        N = self.terminals[0].power.size[0]
+        self.T = cvx.Variable(N)
+
+        constrs = [
+            self.terminals[0].power <= self.p_max,
+            self.terminals[0].power >= 0,
+            self.T <= self.T_max,
+            self.T >= self.T_min,
+        ]
+
+        for i in range(N):
+            Tprev = self.T[i-1] if i else self.T_init
+            constrs += [
+                self.T[i] == (Tprev + alpha*(self.T_ambient[i] - Tprev) -
+                              beta*self.terminals[0].power[i])
+            ]
+
+        return constrs
 
 
 class CurtailableLoad(Device):
@@ -66,7 +103,21 @@ class CurtailableLoad(Device):
 
 class DeferrableLoad(Device):
     """Deferrable load."""
-    pass
+    def __init__(self, name=None, t_start=0, t_end=None, p_total=0, p_max=None):
+        super(DeferrableLoad, self).__init__([Terminal()], name)
+        self.t_start = t_start
+        self.t_end = t_end
+        self.p_total = p_total
+        self.p_max = p_max
+
+    @property
+    def constraints(self):
+        idx = slice(self.t_start, self.t_end)
+        return [
+            cvx.sum_entries(self.terminals[0].power[idx]) >= self.p_total,
+            self.terminals[0].power >= 0,
+            self.terminals[0].power <= self.p_max,
+        ]
 
 
 class TransmissionLine(Device):
@@ -86,4 +137,20 @@ class TransmissionLine(Device):
 
 class Storage(Device):
     """Storage device."""
-    pass
+    def __init__(self, name=None, p_min=0, p_max=None, E_init=0, E_max=None):
+        super(Storage, self).__init__([Terminal()], name)
+        self.p_min = p_min
+        self.p_max = p_max
+        self.E_init = E_init
+        self.E_max = E_max
+
+    @property
+    def constraints(self):
+        N = self.terminals[0].power.size[0]
+        cumsum = np.tril(np.ones((N,N)), 0)
+        self.energy = self.E_init + cumsum*self.terminals[0].power
+        return [
+            self.terminals[0].power >= p_min,
+            self.terminals[0].power <= p_max,
+            self.energy <= self.E_max,
+        ]
