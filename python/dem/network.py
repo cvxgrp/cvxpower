@@ -4,10 +4,6 @@ import cvxpy as cvx
 import numpy as np
 import matplotlib.pyplot as plt
 
-class OptimizationError(Exception):
-    pass
-
-
 class Terminal(object):
     pass
 
@@ -31,17 +27,18 @@ class Net(object):
         return self.constraint.dual_value
 
 
-def update_mpc_results(t, time_steps, results_t, results_mpc):
-    for key, val in results_t.power:
-        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
-    for key, val in result_t.price:
-        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
-
-
 class Device(object):
     def __init__(self, terminals, name=None):
         self.name = type(self).__name__ if name is None else name
         self.terminals = terminals
+
+    @property
+    def cost(self):
+        return 0.0
+
+    @property
+    def constraints(self):
+        return []
 
     def init(self, time_horizon=1, num_scenarios=1):
         for terminal in self.terminals:
@@ -50,7 +47,7 @@ class Device(object):
     def problem(self):
         return cvx.Problem(
             cvx.Minimize(self.cost),
-            [self.constraints] +
+            self.constraints +
             [terminal.power[0,k] == terminal.power[0,0]
              for terminal in self.terminals
              for k in xrange(1, terminal.power.size[1])])
@@ -59,21 +56,6 @@ class Device(object):
         return Results(power={(self, i): t.power.value
                               for i, t in enumerate(self.temrinals)})
 
-    def optimize(self):
-        prob = self.get_problem()
-        prob.solve()
-        if prob.status != cvx.OPTIMAL:
-            raise OptimizationError("optimization failed, " + prob.status)
-
-    def run_mpc(self, time_steps, predict, execute):
-        mpc_results = Results()
-        for t in xrange(time_steps):
-            predict(t)
-            self.optimize()
-            execute(t)
-            update_mpc_results(t, time_steps, self.results(), mpc_results)
-        return mpc_results
-
 
 class Group(Device):
     def __init__(self, devices, nets, terminals=[], name=None):
@@ -81,15 +63,19 @@ class Group(Device):
         self.devices = devices
         self.nets = nets
 
+    @property
+    def children(self):
+        return self.devices + self.nets
+
     def init(self, time_horizon=1, num_scenarios=1):
-        for x in self.devices + self.nets:
+        for x in self.children:
             x.init(time_horizon, num_scenarios)
 
     def problem(self):
-        return sum(x.problem() for x in self.devices + self.nets)
+        return sum(x.problem() for x in self.children)
 
     def results(self):
-        return sum(x.results() for x in self.devices + self.nets)
+        return sum(x.results() for x in self.children)
 
 
 class Results(object):
@@ -135,3 +121,21 @@ class Results(object):
         ax[1].legend(loc="best")
 
         return ax
+
+
+def update_mpc_results(t, time_steps, results_t, results_mpc):
+    for key, val in results_t.power:
+        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
+    for key, val in result_t.price:
+        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
+
+
+def run_mpc(device, time_steps, predict, execute):
+    problem = device.problem()
+    mpc_results = Results()
+    for t in xrange(time_steps):
+        predict(t)
+        problem.solve()
+        execute(t)
+        update_mpc_results(t, time_steps, self.results(), mpc_results)
+    return mpc_results

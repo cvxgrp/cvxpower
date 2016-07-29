@@ -1,3 +1,4 @@
 
 from dem.network import *
-from dem.energy import *
+from dem.devices import *
+from cvxpy import Parameter
