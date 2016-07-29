@@ -1,9 +1,10 @@
 """Network of devices."""
 
 import cvxpy as cvx
+import numpy as np
 import matplotlib.pyplot as plt
 
-class NetworkError(Exception):
+class OptimizationError(Exception):
     pass
 
 
@@ -16,12 +17,25 @@ class Net(object):
         self.name = "Net" if name is None else name
         self.terminals = terminals
 
-    def init_constraint(self):
+    def init(self, time_horizon=1, num_scenarios=1):
         self.constraint = sum(t.power for t in self.terminals) == 0
+
+    def problem(self):
+        return cvx.Problem(cvx.Minimize(0), [self.constraint])
+
+    def results(self):
+        return Results(price={self: self.price})
 
     @property
     def price(self):
         return self.constraint.dual_value
+
+
+def update_mpc_results(t, time_steps, results_t, results_mpc):
+    for key, val in results_t.power:
+        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
+    for key, val in result_t.price:
+        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
 
 
 class Device(object):
@@ -29,24 +43,36 @@ class Device(object):
         self.name = type(self).__name__ if name is None else name
         self.terminals = terminals
 
-    @property
-    def cost(self):
-        return 0.0
-
-    @property
-    def constraints(self):
-        return []
-
-    def init_variables(self, time_horizon):
+    def init(self, time_horizon=1, num_scenarios=1):
         for terminal in self.terminals:
-            terminal.power = cvx.Variable(time_horizon)
+            terminal.power = cvx.Variable(time_horizon, num_scenarios)
 
-    def optimize(self, time_horizon=1):
-        self.init_variables(time_horizon)
-        prob = cvx.Problem(cvx.Minimize(self.cost), self.constraints)
+    def problem(self):
+        return cvx.Problem(
+            cvx.Minimize(self.cost),
+            [self.constraints] +
+            [terminal.power[0,k] == terminal.power[0,0]
+             for terminal in self.terminals
+             for k in xrange(1, terminal.power.size[1])])
+
+    def results(self):
+        return Results(power={(self, i): t.power.value
+                              for i, t in enumerate(self.temrinals)})
+
+    def optimize(self):
+        prob = self.get_problem()
         prob.solve()
         if prob.status != cvx.OPTIMAL:
-            raise NetworkError("optimization failed: " + prob.status)
+            raise OptimizationError("optimization failed, " + prob.status)
+
+    def run_mpc(self, time_steps, predict, execute):
+        mpc_results = Results()
+        for t in xrange(time_steps):
+            predict(t)
+            self.optimize()
+            execute(t)
+            update_mpc_results(t, time_steps, self.results(), mpc_results)
+        return mpc_results
 
 
 class Group(Device):
@@ -55,37 +81,45 @@ class Group(Device):
         self.devices = devices
         self.nets = nets
 
-    @property
-    def cost(self):
-        return sum(d.cost for d in self.devices)
+    def init(self, time_horizon=1, num_scenarios=1):
+        for x in self.devices + self.nets:
+            x.init(time_horizon, num_scenarios)
 
-    @property
-    def constraints(self):
-        return ([constr for d in self.devices for constr in d.constraints] +
-                [n.constraint for n in self.nets])
+    def problem(self):
+        return sum(x.problem() for x in self.devices + self.nets)
 
-    def init_variables(self, time_horizon):
-        for device in self.devices:
-            device.init_variables(time_horizon)
+    def results(self):
+        return sum(x.results() for x in self.devices + self.nets)
 
-        for net in self.nets:
-            net.init_constraint()
 
-    def print_results(self):
-        print "%-20s %10s" % ("Terminal", "Power")
-        print "%-20s %10s" % ("--------", "-----")
+class Results(object):
+    def __init__(self, power={}, price={}):
+        self.power = power
+        self.price = price
+
+    def __add__(self, other):
+        power = self.power.copy()
+        price = self.price.copy()
+        power.update(other.power)
+        price.update(other.price)
+        return Results(power, price)
+
+    def summary(self):
+        retval = ""
+        retval += "%-20s %10s\n" % ("Terminal", "Power")
+        retval += "%-20s %10s\n" % ("--------", "-----")
         for device in self.devices:
             for i, terminal in enumerate(device.terminals):
                 device_terminal = "%s[%d]" % (device.name, i)
-                print "%-20s %10.4f" % (device_terminal, terminal.power.value)
+                reval += "%-20s %10.4f\n" % (device_terminal, terminal.power.value)
 
-        print
-        print "%-20s %10s" % ("Net", "Price")
+        retval += "\n"
+        retval += "%-20s %10s" % ("Net", "Price")
         print "%-20s %10s" % ("---", "-----")
         for net in self.nets:
             print "%-20s %10.4f" % (net.name, net.price)
 
-    def plot_results(self):
+    def plot(self):
         fig, ax = plt.subplots(nrows=2, ncols=1)
 
         ax[0].set_ylabel("power")
