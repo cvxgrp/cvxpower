@@ -3,6 +3,11 @@
 import cvxpy as cvx
 import numpy as np
 import matplotlib.pyplot as plt
+import tqdm
+
+class OptimizationError(Exception):
+    pass
+
 
 class Terminal(object):
     pass
@@ -54,7 +59,7 @@ class Device(object):
 
     def results(self):
         return Results(power={(self, i): t.power.value
-                              for i, t in enumerate(self.temrinals)})
+                              for i, t in enumerate(self.terminals)})
 
 
 class Group(Device):
@@ -79,11 +84,16 @@ class Group(Device):
 
 
 class Results(object):
-    def __init__(self, power={}, price={}):
-        self.power = power
-        self.price = price
+    def __init__(self, power=None, price=None):
+        self.power = power if power else {}
+        self.price = price if price else {}
+
+    def __radd__(self, other):
+        return self.__add__(other)
 
     def __add__(self, other):
+        if other == 0:
+            return self
         power = self.power.copy()
         price = self.price.copy()
         power.update(other.power)
@@ -100,42 +110,46 @@ class Results(object):
                 reval += "%-20s %10.4f\n" % (device_terminal, terminal.power.value)
 
         retval += "\n"
-        retval += "%-20s %10s" % ("Net", "Price")
-        print "%-20s %10s" % ("---", "-----")
+        retval += "%-20s %10s\n" % ("Net", "Price")
+        retval += "%-20s %10s\n" % ("---", "-----")
         for net in self.nets:
-            print "%-20s %10.4f" % (net.name, net.price)
+            retval += "%-20s %10.4f\n" % (net.name, net.price)
+
+        return retval
 
     def plot(self):
         fig, ax = plt.subplots(nrows=2, ncols=1)
 
         ax[0].set_ylabel("power")
-        for device in self.devices:
-            for i, terminal in enumerate(device.terminals):
-                device_terminal = "%s[%d]" % (device.name, i)
-                ax[0].plot(terminal.power.value, label=device_terminal)
+        for device_terminal, value in self.power.iteritems():
+            label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
+            ax[0].plot(value, label=label)
         ax[0].legend(loc="best")
 
         ax[1].set_ylabel("price")
-        for net in self.nets:
-            ax[1].plot(net.price, label=net.name)
+        for net, value in self.price.iteritems():
+            ax[1].plot(value, label=net.name)
         ax[1].legend(loc="best")
 
         return ax
 
 
 def update_mpc_results(t, time_steps, results_t, results_mpc):
-    for key, val in results_t.power:
-        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
-    for key, val in result_t.price:
-        results_mpc.setdefault(key, np.empty(time_steps))[t] = val[0]
+    for key, val in results_t.power.iteritems():
+        results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0]
+    for key, val in results_t.price.iteritems():
+        results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0]
 
 
 def run_mpc(device, time_steps, predict, execute):
     problem = device.problem()
-    mpc_results = Results()
-    for t in xrange(time_steps):
+    results = Results()
+    for t in tqdm.trange(time_steps):
         predict(t)
-        problem.solve()
+        problem.solve(solver=cvx.SCS)
+        if problem.status not in (cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE):
+            raise OptimizationError(
+                "failed at iteration %d, %s" % (t, problem.status))
         execute(t)
-        update_mpc_results(t, time_steps, self.results(), mpc_results)
-    return mpc_results
+        update_mpc_results(t, time_steps, device.results(), results)
+    return results
