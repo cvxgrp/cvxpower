@@ -1,4 +1,11 @@
-"""Device models for dynamic energy management."""
+r"""Device models for dynamic energy management.
+
+Each device has one or more terminals each of which has associated with it a
+vector representing power consumption or generation, :math:`p(\tau),
+\tau = 1, \ldots, T`. The device models described below specify the objective
+function and constraints imposed by each device over these power flows.
+
+"""
 
 import cvxpy as cvx
 import numpy as np
@@ -7,12 +14,37 @@ from dem.network import Device, Terminal
 
 
 class Generator(Device):
-    """Generator with quadratic cost, ramp constraints."""
+    r"""A generic generator model with quadratic cost and ramp constraints.
+
+    The generator has range and ramp rate constraints
+
+    .. math::
+
+      P^{\min} \le -p \le P^{\max} \\
+      R^{\min} \le -D p \le R^{\max}
+
+    ..
+
+    where :math:`D` is the forward difference operator. The cost function is
+    separable across time periods
+
+    .. math::
+
+      \sum_{\tau=1}^T \phi(-p(\tau))
+
+    ..
+
+    and quadratic, :math:`\phi(x) = \alpha x^2 + \beta x`, parameterized by
+    :math:`\alpha, \beta \in \mathbb{R}`.
+
+    """
     def __init__(
             self,
             name=None,
             p_min=0,
             p_max=0,
+            r_min=None,
+            r_max=None,
             alpha=0,
             beta=0):
         super(Generator, self).__init__([Terminal()], name)
