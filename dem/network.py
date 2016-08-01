@@ -1,4 +1,4 @@
-"""Network of devices."""
+"""Network of power devices."""
 
 import cvxpy as cvx
 import numpy as np
@@ -10,29 +10,44 @@ class OptimizationError(Exception):
 
 
 class Terminal(object):
-    pass
+    """Device terminal."""
+
+    @property
+    def power_var(self):
+        return self._power
+
+    @property
+    def power(self):
+        """Power produced or consumed at this terminal."""
+        return self._power.value
 
 
 class Net(object):
+    """Connection point for device terminals."""
+
     def __init__(self, terminals, name=None):
         self.name = "Net" if name is None else name
         self.terminals = terminals
 
-    def init(self, time_horizon=1, num_scenarios=1):
-        self.constraint = sum(t.power for t in self.terminals) == 0
+    def init_problem(self, time_horizon=1, num_scenarios=1):
+        self.constraint = sum(t._power for t in self.terminals) == 0
 
+    @property
     def problem(self):
         return cvx.Problem(cvx.Minimize(0), [self.constraint])
 
+    @property
     def results(self):
         return Results(price={self: self.price})
 
     @property
     def price(self):
+        """Price associated with this net."""
         return self.constraint.dual_value
 
 
 class Device(object):
+    """Base class for network device."""
     def __init__(self, terminals, name=None):
         self.name = type(self).__name__ if name is None else name
         self.terminals = terminals
@@ -45,24 +60,31 @@ class Device(object):
     def constraints(self):
         return []
 
-    def init(self, time_horizon=1, num_scenarios=1):
-        for terminal in self.terminals:
-            terminal.power = cvx.Variable(time_horizon, num_scenarios)
-
+    @property
     def problem(self):
+        """The network optimization problem."""
         return cvx.Problem(
             cvx.Minimize(self.cost),
             self.constraints +
-            [terminal.power[0,k] == terminal.power[0,0]
+            [terminal._power[0,k] == terminal._power[0,0]
              for terminal in self.terminals
-             for k in xrange(1, terminal.power.size[1])])
+             for k in xrange(1, terminal._power.size[1])])
 
+    @property
     def results(self):
-        return Results(power={(self, i): t.power.value
+        """Network optimization results."""
+        return Results(power={(self, i): t.power
                               for i, t in enumerate(self.terminals)})
+
+    def init_problem(self, time_horizon=1, num_scenarios=1):
+        """Initialize the network optimization problem."""
+        for terminal in self.terminals:
+            terminal._power = cvx.Variable(time_horizon, num_scenarios)
 
 
 class Group(Device):
+    """Group of network devices."""
+
     def __init__(self, devices, nets, terminals=[], name=None):
         super(Group, self).__init__(terminals, name)
         self.devices = devices
@@ -72,18 +94,22 @@ class Group(Device):
     def children(self):
         return self.devices + self.nets
 
-    def init(self, time_horizon=1, num_scenarios=1):
-        for x in self.children:
-            x.init(time_horizon, num_scenarios)
-
+    @property
     def problem(self):
-        return sum(x.problem() for x in self.children)
+        return sum(x.problem for x in self.children)
 
+    @property
     def results(self):
-        return sum(x.results() for x in self.children)
+        return sum(x.results for x in self.children)
+
+    def init_problem(self, time_horizon=1, num_scenarios=1):
+        for x in self.children:
+            x.init_problem(time_horizon, num_scenarios)
 
 
 class Results(object):
+    """Network optimization results."""
+
     def __init__(self, power=None, price=None):
         self.power = power if power else {}
         self.price = price if price else {}
@@ -101,6 +127,7 @@ class Results(object):
         return Results(power, price)
 
     def summary(self):
+        """Summary of results."""
         retval = ""
         retval += "%-20s %10s\n" % ("Terminal", "Power")
         retval += "%-20s %10s\n" % ("--------", "-----")
@@ -118,6 +145,7 @@ class Results(object):
         return retval
 
     def plot(self):
+        """Plot results."""
         fig, ax = plt.subplots(nrows=2, ncols=1)
 
         ax[0].set_ylabel("power")
@@ -142,7 +170,8 @@ def update_mpc_results(t, time_steps, results_t, results_mpc):
 
 
 def run_mpc(device, time_steps, predict, execute):
-    problem = device.problem()
+    """Execute model predictive control."""
+    problem = device.problem
     results = Results()
     for t in tqdm.trange(time_steps):
         predict(t)
@@ -151,5 +180,5 @@ def run_mpc(device, time_steps, predict, execute):
             raise OptimizationError(
                 "failed at iteration %d, %s" % (t, problem.status))
         execute(t)
-        update_mpc_results(t, time_steps, device.results(), results)
+        update_mpc_results(t, time_steps, device.results, results)
     return results

@@ -23,7 +23,7 @@ class Generator(Device):
 
     @property
     def cost(self):
-        p = self.terminals[0].power
+        p = self.terminals[0].power_var
         return self.alpha*cvx.sum_squares(p) - self.beta*cvx.sum_entries(p)
 
     @property
@@ -31,8 +31,8 @@ class Generator(Device):
         # TODO(mwytock): Add ramp constraints
 
         return [
-            -self.terminals[0].power <= self.p_max,
-            -self.terminals[0].power >= self.p_min
+            -self.terminals[0].power_var <= self.p_max,
+            -self.terminals[0].power_var >= self.p_min
         ]
 
 
@@ -44,7 +44,7 @@ class FixedLoad(Device):
 
     @property
     def constraints(self):
-        return [self.terminals[0].power == self.p]
+        return [self.terminals[0].power_var == self.p]
 
 
 class ThermalLoad(Device):
@@ -69,12 +69,12 @@ class ThermalLoad(Device):
     def constraints(self):
         alpha = self.conduct_coeff / self.capacity
         beta = self.efficiency / self.capacity
-        N = self.terminals[0].power.size[0]
+        N = self.terminals[0].power_var.size[0]
         self.T = cvx.Variable(N)
 
         constrs = [
-            self.terminals[0].power <= self.p_max,
-            self.terminals[0].power >= 0,
+            self.terminals[0].power_var <= self.p_max,
+            self.terminals[0].power_var >= 0,
         ]
 
         if self.T_max is not None:
@@ -86,7 +86,7 @@ class ThermalLoad(Device):
             Tprev = self.T[i-1] if i else self.T_init
             constrs += [
                 self.T[i] == (Tprev + alpha*(self.T_ambient[i] - Tprev) -
-                              beta*self.terminals[0].power[i])
+                              beta*self.terminals[0].power_var[i])
             ]
 
         return constrs
@@ -101,7 +101,7 @@ class CurtailableLoad(Device):
 
     @property
     def cost(self):
-        return self.alpha*cvx.pos(self.p - self.terminals[0].power)
+        return self.alpha*cvx.pos(self.p - self.terminals[0].power_var)
 
 
 class DeferrableLoad(Device):
@@ -117,9 +117,9 @@ class DeferrableLoad(Device):
     def constraints(self):
         idx = slice(self.t_start, self.t_end)
         return [
-            cvx.sum_entries(self.terminals[0].power[idx]) >= self.E,
-            self.terminals[0].power >= 0,
-            self.terminals[0].power <= self.p_max,
+            cvx.sum_entries(self.terminals[0].power_var[idx]) >= self.E,
+            self.terminals[0].power_var >= 0,
+            self.terminals[0].power_var <= self.p_max,
         ]
 
 
@@ -132,8 +132,8 @@ class TransmissionLine(Device):
     @property
     def constraints(self):
         return [
-            self.terminals[0].power + self.terminals[1].power == 0,
-            (cvx.abs((self.terminals[0].power - self.terminals[1].power)/2)
+            self.terminals[0].power_var + self.terminals[1].power_var == 0,
+            (cvx.abs((self.terminals[0].power_var - self.terminals[1].power_var)/2)
              <= self.p_max)
         ]
 
@@ -149,12 +149,12 @@ class Storage(Device):
 
     @property
     def constraints(self):
-        N = self.terminals[0].power.size[0]
+        N = self.terminals[0].power_var.size[0]
         cumsum = np.tril(np.ones((N,N)), 0)
-        self.energy = self.E_init + cumsum*self.terminals[0].power
+        self.energy = self.E_init + cumsum*self.terminals[0].power_var
         return [
-            self.terminals[0].power >= self.p_min,
-            self.terminals[0].power <= self.p_max,
+            self.terminals[0].power_var >= self.p_min,
+            self.terminals[0].power_var <= self.p_max,
             self.energy <= self.E_max,
             self.energy >= 0,
         ]

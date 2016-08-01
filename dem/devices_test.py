@@ -168,14 +168,14 @@ p_load = (np.sin(np.pi*np.arange(T)/T) + 1e-2).reshape(-1,1)
 
 def test_dynamic_load():
     load = FixedLoad(p=p_load)
-    gen = Generator(p_max=2, alpha=100, beta=100)
+    gen = Generator(p_max=2, p_min=-0.01, alpha=100, beta=100)
     net = Net([load.terminals[0], gen.terminals[0]])
-
     network = Group([load, gen], [net])
-    network.init(time_horizon=T)
-    network.problem().solve()
-    np.testing.assert_allclose(load.terminals[0].power.value,  p_load, atol=1e-4)
-    np.testing.assert_allclose( gen.terminals[0].power.value, -p_load, atol=1e-4)
+
+    network.init_problem(time_horizon=T)
+    network.problem.solve()
+    np.testing.assert_allclose(load.terminals[0].power,  p_load, atol=1e-4)
+    np.testing.assert_allclose( gen.terminals[0].power, -p_load, atol=1e-4)
     np.testing.assert_allclose(net.price, p_load*200 + 100, rtol=1e-4)
 
 def test_storage():
