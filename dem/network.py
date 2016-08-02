@@ -5,10 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
 
-class OptimizationError(Exception):
-    """Error due to infeasibility or numerical problems during optimziation."""
-    pass
-
 
 class Terminal(object):
     """Device terminal."""
@@ -225,6 +221,11 @@ def _update_mpc_results(t, time_steps, results_t, results_mpc):
         results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0]
 
 
+class OptimizationError(Exception):
+    """Error due to infeasibility or numerical problems during optimziation."""
+    pass
+
+
 def run_mpc(device, time_steps, predict, execute):
     """Execute model predictive control.
 
@@ -252,6 +253,7 @@ def run_mpc(device, time_steps, predict, execute):
     :type execute: single argument function
     :returns: Model predictive control results
     :rtype: :class:`Results`
+    :raise: :class:`OptimizationError`
 
     """
     problem = device.problem
