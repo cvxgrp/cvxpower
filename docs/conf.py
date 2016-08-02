@@ -128,8 +128,10 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'github_user': 'mwytock',
+    'github_banner': 'true',
     'github_repo': 'dem',
+    'github_type': 'star',
+    'github_user': 'mwytock',
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
