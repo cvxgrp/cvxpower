@@ -21,6 +21,18 @@ import shlex
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
 
+# Mock out dependencies for readthedocs
+if os.environ.get('READTHEDOCS') == 'True':
+    from unittest.mock import MagicMock
+
+    class Mock(MagicMock):
+        @classmethod
+        def __getattr__(cls, name):
+            return Mock()
+
+    MOCK_MODULES = ['cvxpy', 'matplotlib', 'numpy', 'tqdm']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.

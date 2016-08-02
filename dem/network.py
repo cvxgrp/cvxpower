@@ -1,5 +1,7 @@
 r"""Optimization over a network of power devices.
 
+XXX add more background on devices, nets and terminals.
+
 In particular, a problem of the form
 
 .. math::
