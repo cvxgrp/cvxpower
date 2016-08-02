@@ -23,7 +23,12 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 
 # Mock out dependencies for readthedocs
-MOCK_MODULES = ['cvxpy', 'matplotlib', 'numpy', 'tqdm']
+MOCK_MODULES = [
+    'cvxpy',
+    'matplotlib',
+    'matplotlib.pyplot',
+    'numpy',
+    'tqdm']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
