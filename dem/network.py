@@ -1,17 +1,4 @@
-r"""Optimization over a network of power devices.
-
-XXX add more background on devices, nets and terminals.
-
-In particular, a problem of the form
-
-.. math::
-
-   \DeclareMathOperator{\minimize}{minimize}
-   \DeclareMathOperator{\subjectto}{subject\;to}
-   \minimize \;\; & \sum_{d\in\mathcal{D}} f_d(p_d) \\
-   \subjectto \;\; & \sum_{t \in n} p_t(\tau) = 0, \tau = 1,\ldots,T, n \in \mathcal{N}
-
-"""
+"""Network of power devices."""
 
 import cvxpy as cvx
 import numpy as np
@@ -39,9 +26,13 @@ class Terminal(object):
 class Net(object):
     r"""Connection point for device terminals.
 
-    A net :math:`n` defines the power balance constraint :math:`\sum_{t \in n}
-    p_t = 0` where the sum is over all terminals connected to the net denoted as
-    :math:`t \in n`.
+    A net defines the power balance constraint ensuring that power sums to zero
+    across all connected terminals at each time point.
+
+    :param terminals: The terminals connected to this net
+    :param name: (optional) Display name of net
+    :type terminals: list of :class:`Terminal`
+    :type name: string
     """
 
     def __init__(self, terminals, name=None):
@@ -68,14 +59,13 @@ class Net(object):
 class Device(object):
     """Base class for network device.
 
-    In order to add a new device model, subclass this and override
-    `constraints` and `cost` to define the device-specific cost
-    function,  :math:`f_d(p_d)`.
+    Subclasses are expected to override :attr:`constraints` and/or
+    :attr:`cost` to define the device-specific cost function.
 
     :param terminals: The terminals of the device
-    :type terminals: sequence of Terminal
-    :param name: Display name of device
-    :type name: str or None
+    :param name: (optional) Display name of device
+    :type terminals: list of :class:`Terminal`
+    :type name: string
     """
 
     def __init__(self, terminals, name=None):
@@ -94,7 +84,7 @@ class Device(object):
     def constraints(self):
         """Device constraints, to be overriden by subclasses.
 
-        :rtype: sequence of cvxpy expressions
+        :rtype: list of cvxpy expressions
         """
         return []
 
@@ -102,7 +92,7 @@ class Device(object):
     def problem(self):
         """The network optimization problem.
 
-        :rtype: cvxpy.Problem
+        :rtype: :class:`cvxpy.Problem`
         """
         return cvx.Problem(
             cvx.Minimize(self.cost),
@@ -115,7 +105,7 @@ class Device(object):
     def results(self):
         """Network optimization results.
 
-        :rtype: Results
+        :rtype: :class:`Results`
         """
         return Results(power={(self, i): t.power
                               for i, t in enumerate(self.terminals)})
@@ -139,14 +129,14 @@ class Group(Device):
     The `Group` device allows for creating new devices composed of existing base
     devices or other groups.
 
-    :param devices: Interal devices to be included
-    :param nets: Internal nets to be included
-    :param terminals: External terminals for new device
-    :param name: Display name of group device
-    :type devices: sequence of Device
-    :type nets: sequence of Net
-    :type terminals: sequence of Terminal
-    :type name: str or None
+    :param devices: Interal devices to be included.
+    :param nets: Internal nets to be included.
+    :param terminals: (optional) Terminals for new device.
+    :param name: (optional) Display name of group device
+    :type devices: list of :class:`Device`
+    :type nets: list of :class:`Net`
+    :type terminals: list of :class:`Terminal`
+    :type name: string
     """
     def __init__(self, devices, nets, terminals=[], name=None):
         super(Group, self).__init__(terminals, name)
@@ -192,7 +182,6 @@ class Results(object):
     def summary(self):
         """Summary of results.
 
-
         :rtype: str
         """
         retval = ""
@@ -229,7 +218,7 @@ class Results(object):
         return ax
 
 
-def update_mpc_results(t, time_steps, results_t, results_mpc):
+def _update_mpc_results(t, time_steps, results_t, results_mpc):
     for key, val in results_t.power.iteritems():
         results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0]
     for key, val in results_t.price.iteritems():
@@ -257,12 +246,12 @@ def run_mpc(device, time_steps, predict, execute):
     :param time_steps: Time steps to optimize over
     :param predict: Prediction step
     :param execute: Execution step
-    :type device: Device
+    :type device: :class:`Device`
     :type time_steps: sequence
-    :type predict: single arg function
-    :type execute: single arg function
+    :type predict: single argument function
+    :type execute: single argument function
     :returns: Model predictive control results
-    :rtype: Results
+    :rtype: :class:`Results`
 
     """
     problem = device.problem
@@ -274,5 +263,5 @@ def run_mpc(device, time_steps, predict, execute):
             raise OptimizationError(
                 "failed at iteration %d, %s" % (t, problem.status))
         execute(t)
-        update_mpc_results(t, time_steps, device.results, results)
+        _update_mpc_results(t, time_steps, device.results, results)
     return results
