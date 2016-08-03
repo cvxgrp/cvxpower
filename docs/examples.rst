@@ -7,3 +7,5 @@ Examples
    notebooks/static
    notebooks/dynamic
    notebooks/windfarm
+   notebooks/microgrid
+   notebooks/smarthome

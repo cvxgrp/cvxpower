@@ -226,7 +226,7 @@ class OptimizationError(Exception):
     pass
 
 
-def run_mpc(device, time_steps, predict, execute):
+def run_mpc(device, time_steps, predict, execute, **kwargs):
     """Execute model predictive control.
 
     This method executes the model predictive control loop, roughly:
@@ -260,8 +260,8 @@ def run_mpc(device, time_steps, predict, execute):
     results = Results()
     for t in tqdm.trange(time_steps):
         predict(t)
-        problem.solve(solver=cvx.SCS)
-        if problem.status not in (cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE):
+        problem.solve(**kwargs)
+        if problem.status != cvx.OPTIMAL:
             raise OptimizationError(
                 "failed at iteration %d, %s" % (t, problem.status))
         execute(t)

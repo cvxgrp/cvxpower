@@ -1,4 +1,7 @@
 
+Wind farm integration
+=====================
+
 An example of a wind farm offering firm power by estimating the expected
 wind resource and then using a MPC to jointly optimize control of a
 small gas turbine and storage.
@@ -10,6 +13,7 @@ small gas turbine and storage.
     import pandas as pd
     import matplotlib
     import numpy as np
+    import cvxpy as cvx
     from matplotlib import pyplot as plt
     
     from dem import *
@@ -18,7 +22,7 @@ small gas turbine and storage.
     matplotlib.rc("lines", linewidth=2)
 
 Wind resource
-=============
+-------------
 
 Data is from `NREL wind integration
 dataset <http://www.nrel.gov/electricity/transmission/wind_toolkit.html>`__,
@@ -47,7 +51,7 @@ site 20182.
 
 .. parsed-literal::
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x18131fb90>
+    <matplotlib.axes._subplots.AxesSubplot at 0x100fe1610>
 
 
 
@@ -56,7 +60,7 @@ site 20182.
 
 
 Power blocks
-------------
+~~~~~~~~~~~~
 
 The amount of power offered for sale
 
@@ -86,10 +90,10 @@ The amount of power offered for sale
 
 
 MPC
-===
+---
 
 Autoregressive model
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -108,7 +112,7 @@ Autoregressive model
             tau = t+i
             r[i] = lr.predict(x.reshape(1,-1))
             x = np.hstack((r[i], x[:-1]))
-        return p_wind_mean[t:t+T] + r
+        return np.maximum(p_wind_mean[t:t+T] + r, 0)
     
     t = 4*24*2
     T = 4*24
@@ -123,7 +127,7 @@ Autoregressive model
 
 .. parsed-literal::
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x1752ab990>
+    <matplotlib.axes._subplots.AxesSubplot at 0x13962d190>
 
 
 
@@ -133,55 +137,84 @@ Autoregressive model
 
 .. code:: python
 
-    T = 4*24
-    out = FixedLoad(p=Parameter(T+1), name="Output")
-    wind_gen = Generator(alpha=0, beta=0, p_min=0, p_max=Parameter(T+1), name="Wind")
-    gas_gen = Generator(alpha=0.02, beta=1, p_min=0.01, p_max=0.5, name="Gas")
-    storage = Storage(p_min=-0.5, p_max=0.5, E_max=12*4, E_init=Parameter(1, value=6*4))
+    from dem import network
+    from dem import devices
+    reload(network)
+    reload(devices)
     
+    CurtailableLoad = devices.CurtailableLoad
+    DeferrableLoad = devices.DeferrableLoad
+    FixedLoad = devices.FixedLoad
+    Generator = devices.Generator
+    Group = network.Group
+    Net = network.Net
+    Storage = devices.Storage
+    ThermalLoad = devices.ThermalLoad
+    TransmissionLine = devices.TransmissionLine
+    
+    run_mpc = network.run_mpc
+
+.. code:: python
+
+    T = 4*24
+    out = FixedLoad(power=Parameter(T+1), name="Output")
+    wind_gen = Generator(alpha=0, beta=0, power_min=0, power_max=Parameter(T+1), name="Wind")
+    gas_gen = Generator(alpha=0.02, beta=1, power_min=0.01, power_max=1, name="Gas")
+    storage = Storage(discharge_max=1, charge_max=1, energy_max=12*4, energy_init=Parameter(1, value=6*4))
     net = Net([wind_gen.terminals[0], 
                gas_gen.terminals[0],
                storage.terminals[0], 
                out.terminals[0]])
     network = Group([wind_gen, gas_gen, storage, out], [net])
-    network.init(time_horizon=T+1)
+    network.init_problem(time_horizon=T+1)
     
     def predict(t):
-        out.p.value = p_out[t:t+T+1].as_matrix()/16
-        wind_gen.p_max.value = np.hstack((p_wind[t], predict_wind(t+1,T)))/16
-        
+        out.power.value = p_wind_mean[t:t+T+1].as_matrix()/16
+        wind_gen.power_max.value = np.hstack((p_wind[t], predict_wind(t+1,T)))/16
+    
     def execute(t):
-        storage.E_init.value = storage.energy.value[0]
+        energy_stored[t] = storage.energy.value[0]
+        storage.energy_init.value = storage.energy.value[0]
     
     N = 4*24*7
+    energy_stored = np.empty(N)
     results = run_mpc(network, N, predict, execute)
 
 
 .. parsed-literal::
 
-    100%|██████████| 672/672 [02:44<00:00,  4.90it/s]
+    100%|██████████| 672/672 [00:33<00:00, 20.31it/s]
 
 
 .. code:: python
 
+    # plot the results
     results.plot()
+    
+    # plot energy stored in battery
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,3))
+    ax.plot(energy_stored)
+    ax.set_ylabel("energy stored")
 
 
 
 
 .. parsed-literal::
 
-    array([<matplotlib.axes._subplots.AxesSubplot object at 0x17c62ead0>,
-           <matplotlib.axes._subplots.AxesSubplot object at 0x178fcb990>], dtype=object)
+    <matplotlib.text.Text at 0x15d0bccd0>
 
 
 
 
-.. image:: windfarm_files/windfarm_10_1.png
+.. image:: windfarm_files/windfarm_11_1.png
+
+
+
+.. image:: windfarm_files/windfarm_11_2.png
 
 
 Wind curtailment
-----------------
+~~~~~~~~~~~~~~~~
 
 Current model is not too smart about using all the available wind power,
 at times it doesn't even charge the battery when there is extra power
@@ -198,10 +231,10 @@ available...
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x173e2efd0>
+    <matplotlib.legend.Legend at 0x15ca9e710>
 
 
 
 
-.. image:: windfarm_files/windfarm_12_1.png
+.. image:: windfarm_files/windfarm_13_1.png
 

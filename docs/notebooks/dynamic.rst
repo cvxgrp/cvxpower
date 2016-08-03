@@ -20,22 +20,6 @@ Dynamic power flow
 Basic examples
 --------------
 
-.. code:: python
-
-    from dem import network
-    from dem import devices
-    reload(network)
-    reload(devices)
-    
-    CurtailableLoad = devices.CurtailableLoad
-    FixedLoad = devices.FixedLoad
-    Generator = devices.Generator
-    Group = network.Group
-    Net = network.Net
-    Storage = devices.Storage
-    TransmissionLine = devices.TransmissionLine
-    run_mpc = network.run_mpc
-
 Time-varying load
 ~~~~~~~~~~~~~~~~~
 
@@ -61,7 +45,7 @@ Time-varying load
 
 
 
-.. image:: dynamic_files/dynamic_5_1.png
+.. image:: dynamic_files/dynamic_4_1.png
 
 
 Storage
@@ -69,14 +53,15 @@ Storage
 
 .. code:: python
 
-    load = FixedLoad(p=p_load)
-    gen = Generator(p_max=2, alpha=100, beta=100)
-    storage = Storage(p_min=-0.4, p_max=0.1, E_max=2)
-    
+    load = FixedLoad(power=p_load)
+    gen = Generator(power_max=2, alpha=100, beta=100)
+    storage = Storage(discharge_max=0.4, charge_max=0.1, energy_max=2)
     net = Net([load.terminals[0], gen.terminals[0], storage.terminals[0]])
     network = Group([load, gen, storage], [net])
-    network.optimize(time_horizon=N)
-    network.plot_results()
+    
+    network.init_problem(time_horizon=T)
+    network.problem.solve()
+    network.results.plot()
     
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,3))
     ax.plot(storage.energy.value)
@@ -85,19 +70,18 @@ Storage
 
 
 
-
 .. parsed-literal::
 
-    <matplotlib.text.Text at 0x10e763a90>
+    <matplotlib.text.Text at 0x108e43c10>
 
 
 
 
-.. image:: dynamic_files/dynamic_7_1.png
+.. image:: dynamic_files/dynamic_6_1.png
 
 
 
-.. image:: dynamic_files/dynamic_7_2.png
+.. image:: dynamic_files/dynamic_6_2.png
 
 
 Deferrable load
@@ -105,27 +89,28 @@ Deferrable load
 
 .. code:: python
 
-    load = FixedLoad(p=p_load)
-    gen = Generator(p_max=2, alpha=100, beta=100)
-    deferrable = DeferrableLoad(t_start=50, E=20, p_max=0.8)
-    
+    load = FixedLoad(power=p_load)
+    gen = Generator(power_max=2, alpha=100, beta=100)
+    deferrable = DeferrableLoad(time_start=50, energy=20, power_max=0.8)
     net = Net([load.terminals[0], gen.terminals[0], deferrable.terminals[0]])
     network = Group([load, gen, deferrable], [net])
-    network.optimize(time_horizon=N)
-    network.plot_results()
+    
+    network.init_problem(time_horizon=T)
+    network.problem.solve()
+    network.results.plot()
 
 
 
 
 .. parsed-literal::
 
-    array([<matplotlib.axes._subplots.AxesSubplot object at 0x10d42f810>,
-           <matplotlib.axes._subplots.AxesSubplot object at 0x10d488850>], dtype=object)
+    array([<matplotlib.axes._subplots.AxesSubplot object at 0x1086a4450>,
+           <matplotlib.axes._subplots.AxesSubplot object at 0x109402cd0>], dtype=object)
 
 
 
 
-.. image:: dynamic_files/dynamic_9_1.png
+.. image:: dynamic_files/dynamic_8_1.png
 
 
 Thermal load
@@ -133,22 +118,23 @@ Thermal load
 
 .. code:: python
 
-    T_ambient = (np.sin(np.pi*np.arange(N)/N) + 1e-2).reshape(-1,1)**2*50+50
+    temp_amb = (np.sin(np.pi*np.arange(T)/T) + 1e-2).reshape(-1,1)**2*50+50
     
-    load = FixedLoad(p=p_load)
-    gen = Generator(p_max=2, alpha=100, beta=100)
+    load = FixedLoad(power=p_load)
+    gen = Generator(power_max=2, alpha=100, beta=100)
     thermal = ThermalLoad(
-        T_init=60, T_ambient=T_ambient, T_min=None, T_max=80,
-        p_max=2, conduct_coeff=0.1, efficiency=3., capacity=1.)
-    
+        temp_init=60, temp_amb=temp_amb, temp_min=None, temp_max=80,
+        power_max=2, amb_conduct_coeff=0.1, efficiency=3, capacity=1)
     net = Net([load.terminals[0], gen.terminals[0], thermal.terminals[0]])
     network = Group([load, gen, thermal], [net])
-    network.optimize(time_horizon=N)
-    network.plot_results()
+    
+    network.init_problem(time_horizon=T)
+    network.problem.solve()
+    network.results.plot()
     
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,3))
-    ax.plot(T_ambient, label="Ambient")
-    ax.plot(thermal.T.value, label="Internal")
+    ax.plot(temp_amb, label="Ambient")
+    ax.plot(thermal.temp.value, label="Internal")
     ax.set_ylabel("temperature")
     ax.legend()
 
@@ -157,14 +143,14 @@ Thermal load
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x11093c650>
+    <matplotlib.legend.Legend at 0x109967150>
 
 
 
 
-.. image:: dynamic_files/dynamic_11_1.png
+.. image:: dynamic_files/dynamic_10_1.png
 
 
 
-.. image:: dynamic_files/dynamic_11_2.png
+.. image:: dynamic_files/dynamic_10_2.png
 
