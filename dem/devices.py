@@ -69,8 +69,11 @@ class Generator(Device):
             beta=0,
             name=None):
         super(Generator, self).__init__([Terminal()], name)
-        self.p_min = p_min
-        self.p_max = p_max
+        self.power_min = power_min
+        self.power_max = power_max
+        self.ramp_min = ramp_min
+        self.ramp_max = ramp_max
+        self.power_init = power_init
         self.alpha = alpha
         self.beta = beta
 
@@ -84,10 +87,9 @@ class Generator(Device):
         # TODO(mwytock): Add ramp constraints
 
         return [
-            -self.terminals[0].power_var <= self.p_max,
-            -self.terminals[0].power_var >= self.p_min
+            -self.terminals[0].power_var <= self.power_max,
+            -self.terminals[0].power_var >= self.power_min
         ]
-
 
 class FixedLoad(Device):
     """Fixed load.
@@ -106,11 +108,11 @@ class FixedLoad(Device):
     """
     def __init__(self, power=None, name=None):
         super(FixedLoad, self).__init__([Terminal()], name)
-        self.p = p
+        self.power = power
 
     @property
     def constraints(self):
-        return [self.terminals[0].power_var == self.p]
+        return [self.terminals[0].power_var == self.power]
 
 
 class ThermalLoad(Device):
@@ -164,37 +166,38 @@ class ThermalLoad(Device):
                  capacity=None,
                  name=None):
         super(ThermalLoad, self).__init__([Terminal()], name)
-        self.T_init = T_init,
-        self.T_min = T_min
-        self.T_max = T_max
-        self.T_ambient = T_ambient
-        self.p_max = p_max
-        self.conduct_coeff = conduct_coeff
+        self.temp_init = temp_init
+        self.temp_min = temp_min
+        self.temp_max = temp_max
+        self.temp_amb = temp_amb
+        self.power_max = power_max
+        self.amb_conduct_coeff = amb_conduct_coeff
         self.efficiency = efficiency
         self.capacity = capacity
 
     @property
     def constraints(self):
-        alpha = self.conduct_coeff / self.capacity
+        alpha = self.amb_conduct_coeff / self.capacity
         beta = self.efficiency / self.capacity
         N = self.terminals[0].power_var.size[0]
-        self.T = cvx.Variable(N)
+        self.temp = cvx.Variable(N)
 
         constrs = [
-            self.terminals[0].power_var <= self.p_max,
+            self.terminals[0].power_var <= self.power_max,
             self.terminals[0].power_var >= 0,
         ]
 
-        if self.T_max is not None:
-            constrs += [self.T <= self.T_max]
-        if self.T_min is not None:
-            constrs += [self.T >= self.T_min]
+        if self.temp_max is not None:
+            constrs += [self.temp <= self.temp_max]
+        if self.temp_min is not None:
+            constrs += [self.temp >= self.temp_min]
 
         for i in range(N):
-            Tprev = self.T[i-1] if i else self.T_init
+            temp_prev = self.temp[i-1] if i else self.temp_init
             constrs += [
-                self.T[i] == (Tprev + alpha*(self.T_ambient[i] - Tprev) -
-                              beta*self.terminals[0].power_var[i])
+                self.temp[i] == (
+                    temp_prev + alpha*(self.temp_amb[i] - temp_prev) -
+                    beta*self.terminals[0].power_var[i])
             ]
 
         return constrs
@@ -225,12 +228,12 @@ class CurtailableLoad(Device):
     """
     def __init__(self, power=None, alpha=None, name=None):
         super(CurtailableLoad, self).__init__([Terminal()], name)
-        self.p = p
+        self.power = power
         self.alpha = alpha
 
     @property
     def cost(self):
-        return self.alpha*cvx.pos(self.p - self.terminals[0].power_var)
+        return self.alpha*cvx.pos(self.power - self.terminals[0].power_var)
 
 
 class DeferrableLoad(Device):
@@ -264,18 +267,18 @@ class DeferrableLoad(Device):
     def __init__(self, energy=0, power_max=None, time_start=0, time_end=None,
                  name=None):
         super(DeferrableLoad, self).__init__([Terminal()], name)
-        self.t_start = t_start
-        self.t_end = t_end
-        self.E = E
-        self.p_max = p_max
+        self.time_start = time_start
+        self.time_end = time_end
+        self.energy = energy
+        self.power_max = power_max
 
     @property
     def constraints(self):
-        idx = slice(self.t_start, self.t_end)
+        idx = slice(self.time_start, self.time_end)
         return [
-            cvx.sum_entries(self.terminals[0].power_var[idx]) >= self.E,
+            cvx.sum_entries(self.terminals[0].power_var[idx]) >= self.energy,
             self.terminals[0].power_var >= 0,
-            self.terminals[0].power_var <= self.p_max,
+            self.terminals[0].power_var <= self.power_max,
         ]
 
 
@@ -303,14 +306,14 @@ class TransmissionLine(Device):
     """
     def __init__(self, power_max=None, name=None):
         super(TransmissionLine, self).__init__([Terminal(), Terminal()], name)
-        self.p_max = p_max
+        self.power_max = power_max
 
     @property
     def constraints(self):
         return [
             self.terminals[0].power_var + self.terminals[1].power_var == 0,
             (cvx.abs((self.terminals[0].power_var -
-                      self.terminals[1].power_var)/2) <= self.p_max)
+                      self.terminals[1].power_var)/2) <= self.power_max)
         ]
 
 
@@ -351,19 +354,19 @@ class Storage(Device):
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
                  energy_max=None, name=None):
         super(Storage, self).__init__([Terminal()], name)
-        self.p_min = p_min
-        self.p_max = p_max
-        self.E_init = E_init
-        self.E_max = E_max
+        self.discharge_max = discharge_max
+        self.charge_max = charge_max
+        self.energy_init = energy_init
+        self.energy_max = energy_max
 
     @property
     def constraints(self):
         N = self.terminals[0].power_var.size[0]
         cumsum = np.tril(np.ones((N,N)), 0)
-        self.energy = self.E_init + cumsum*self.terminals[0].power_var
+        self.energy = self.energy_init + cumsum*self.terminals[0].power_var
         return [
-            self.terminals[0].power_var >= self.p_min,
-            self.terminals[0].power_var <= self.p_max,
-            self.energy <= self.E_max,
+            self.terminals[0].power_var >= -self.discharge_max,
+            self.terminals[0].power_var <= self.charge_max,
+            self.energy <= self.energy_max,
             self.energy >= 0,
         ]

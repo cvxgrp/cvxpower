@@ -9,6 +9,7 @@ import tqdm
 class Terminal(object):
     """Device terminal."""
 
+    @property
     def power_var(self):
         return self._power
 
