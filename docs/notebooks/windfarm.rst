@@ -51,7 +51,7 @@ site 20182.
 
 .. parsed-literal::
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x100fe1610>
+    <matplotlib.axes._subplots.AxesSubplot at 0x112c520d0>
 
 
 
@@ -127,32 +127,13 @@ Autoregressive model
 
 .. parsed-literal::
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x13962d190>
+    <matplotlib.axes._subplots.AxesSubplot at 0x113ec98d0>
 
 
 
 
 .. image:: windfarm_files/windfarm_8_1.png
 
-
-.. code:: python
-
-    from dem import network
-    from dem import devices
-    reload(network)
-    reload(devices)
-    
-    CurtailableLoad = devices.CurtailableLoad
-    DeferrableLoad = devices.DeferrableLoad
-    FixedLoad = devices.FixedLoad
-    Generator = devices.Generator
-    Group = network.Group
-    Net = network.Net
-    Storage = devices.Storage
-    ThermalLoad = devices.ThermalLoad
-    TransmissionLine = devices.TransmissionLine
-    
-    run_mpc = network.run_mpc
 
 .. code:: python
 
@@ -183,7 +164,7 @@ Autoregressive model
 
 .. parsed-literal::
 
-    100%|██████████| 672/672 [00:33<00:00, 20.31it/s]
+    100%|██████████| 672/672 [00:29<00:00, 22.65it/s]
 
 
 .. code:: python
@@ -201,16 +182,16 @@ Autoregressive model
 
 .. parsed-literal::
 
-    <matplotlib.text.Text at 0x15d0bccd0>
+    <matplotlib.text.Text at 0x113cd9810>
 
 
 
 
-.. image:: windfarm_files/windfarm_11_1.png
+.. image:: windfarm_files/windfarm_10_1.png
 
 
 
-.. image:: windfarm_files/windfarm_11_2.png
+.. image:: windfarm_files/windfarm_10_2.png
 
 
 Wind curtailment
@@ -231,10 +212,143 @@ available...
 
 .. parsed-literal::
 
-    <matplotlib.legend.Legend at 0x15ca9e710>
+    <matplotlib.legend.Legend at 0x1110b8c50>
 
 
 
 
-.. image:: windfarm_files/windfarm_13_1.png
+.. image:: windfarm_files/windfarm_12_1.png
+
+
+Robust MPC
+----------
+
+Probabilistic predictions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: python
+
+    from sklearn import linear_model
+    
+    H = 4*6
+    p_wind_residual = p_wind - p_wind_mean
+    X = np.hstack([p_wind_residual.shift(x).fillna(0).reshape(-1,1) for x in xrange(1,H+1)])
+    lr = linear_model.RidgeCV()
+    lr.fit(X, p_wind_residual)
+    sigma = np.std(lr.predict(X) - p_wind_residual)
+    
+    def predict_wind_probs(t, T, K):
+        np.random.seed(0)    
+        R = np.empty((T,K))    
+        Xp =  np.tile(X[t,:], (K,1))  # K x H prediction matrix
+        for i in xrange(T):
+            tau = t+i
+            R[i,:] = lr.predict(Xp) + sigma*np.random.randn(K)
+            Xp = np.hstack((R[i:i+1,:].T, Xp[:,:-1]))
+        return np.minimum(np.maximum(np.tile(p_wind_mean[t:t+T], (K,1)).T + R, 0), 16)
+    
+    # plot an example of predictions at a particular time
+    idx = slice("2011-01-02", "2011-01-03")
+    t = 4*24*2
+    T = 4*24
+    K = 10
+    wind_probs = predict_wind_probs(t, T, K)
+    ax0 = plt.plot(p_wind[idx].index, p_wind[idx])
+    ax1 = plt.plot(p_wind.index[t:t+T], wind_probs, color="b", alpha=0.3)
+    ax2 = plt.plot(p_wind_mean[idx].index, p_wind_mean[idx])
+    plt.legend(handles=[ax0[0], ax1[0], ax2[0]], labels=["p_wind", "p_wind_pred", "p_out"])
+
+
+
+
+.. parsed-literal::
+
+    <matplotlib.legend.Legend at 0x113eafe90>
+
+
+
+
+.. image:: windfarm_files/windfarm_15_1.png
+
+
+.. code:: python
+
+    T = 24*4*2  # 48 hours, 15 minute intervals
+    K = 10      # 10 scenarios
+    
+    out = FixedLoad(power=Parameter(T+1,K), name="Output")
+    wind_gen = Generator(alpha=0, beta=0, power_min=0, power_max=Parameter(T+1,K), name="Wind")
+    gas_gen = Generator(alpha=0.02, beta=1, power_min=0.01, power_max=1, name="Gas")
+    storage = Storage(discharge_max=1, charge_max=1, energy_max=12*4, energy_init=Parameter(1, value=6*4))
+    net = Net([wind_gen.terminals[0], 
+               gas_gen.terminals[0],
+               storage.terminals[0], 
+               out.terminals[0]])
+    network = Group([wind_gen, gas_gen, storage, out], [net])
+    network.init_problem(time_horizon=T+1, num_scenarios=K)
+    
+    def predict(t):
+        out.power.value = np.tile(p_wind_mean[t:t+T+1], (K,1)).T / 16
+        wind_gen.power_max.value = np.empty((T+1, K))
+        wind_gen.power_max.value[0,:] = p_wind[t] / 16
+        wind_gen.power_max.value[1:,:] = predict_wind_probs(t+1,T,K) / 16
+    
+    def execute(t):
+        energy_stored[t] = storage.energy.value[0,0]
+        storage.energy_init.value = energy_stored[t]
+        
+    N = 7*24*4   # 7 days
+    energy_stored = np.empty(N)
+    results = run_mpc(network, N, predict, execute, solver=cvx.MOSEK)
+
+
+.. parsed-literal::
+
+    100%|██████████| 672/672 [1:21:08<00:00,  5.88s/it]
+
+
+.. code:: python
+
+    # plot the results
+    results.plot()
+    
+    # plot energy stored in battery
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(16,3))
+    ax.plot(energy_stored)
+    ax.set_ylabel("energy stored")
+
+
+
+
+.. parsed-literal::
+
+    <matplotlib.text.Text at 0x113f4c850>
+
+
+
+
+.. image:: windfarm_files/windfarm_17_1.png
+
+
+
+.. image:: windfarm_files/windfarm_17_2.png
+
+
+.. code:: python
+
+    plt.plot(xrange(N), p_wind[:N]/16, label="p_wind_max")
+    plt.plot(-results.power[(wind_gen, 0)], label="p_wind")
+    plt.legend()
+
+
+
+
+.. parsed-literal::
+
+    <matplotlib.legend.Legend at 0x11317f0d0>
+
+
+
+
+.. image:: windfarm_files/windfarm_18_1.png
 
