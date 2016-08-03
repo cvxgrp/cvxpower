@@ -184,16 +184,15 @@ class Results(object):
         retval = ""
         retval += "%-20s %10s\n" % ("Terminal", "Power")
         retval += "%-20s %10s\n" % ("--------", "-----")
-        for device in self.devices:
-            for i, terminal in enumerate(device.terminals):
-                device_terminal = "%s[%d]" % (device.name, i)
-                reval += "%-20s %10.4f\n" % (device_terminal, terminal.power.value)
+        for device_terminal, value in self.power.iteritems():
+            label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
+            retval += "%-20s %10.4f\n" % (label, value)
 
         retval += "\n"
         retval += "%-20s %10s\n" % ("Net", "Price")
         retval += "%-20s %10s\n" % ("---", "-----")
-        for net in self.nets:
-            retval += "%-20s %10.4f\n" % (net.name, net.price)
+        for net, value in self.price.iteritems():
+            retval += "%-20s %10.4f\n" % (net.name, value)
 
         return retval
 
