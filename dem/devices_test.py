@@ -64,7 +64,7 @@ def test_three_buses():
     gen2 = Generator(power_max=100, alpha=0.1, beta=0.1, name="Gen2")
     line1 = TransmissionLine(power_max=50)
     line2 = TransmissionLine(power_max=10)
-    line3 = TransmissionLine(power_max=50)
+    line3 = TransmissionLine(power_max=55)
 
     net1 = Net([load1.terminals[0], gen1.terminals[0], line1.terminals[0], line2.terminals[0]])
     net2 = Net([load2.terminals[0], line1.terminals[1], line3.terminals[0]])
@@ -76,18 +76,18 @@ def test_three_buses():
 
     np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-4)
     np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-4)
-    np.testing.assert_allclose( gen1.terminals[0].power, -90, rtol=1e-4)
-    np.testing.assert_allclose( gen2.terminals[0].power, -60, rtol=1e-4)
-    np.testing.assert_allclose(line1.terminals[0].power,  50, rtol=1e-4)
-    np.testing.assert_allclose(line1.terminals[1].power, -50, rtol=1e-4)
+    np.testing.assert_allclose( gen1.terminals[0].power, -85, rtol=1e-4)
+    np.testing.assert_allclose( gen2.terminals[0].power, -65, rtol=1e-4)
+    np.testing.assert_allclose(line1.terminals[0].power,  45, rtol=1e-4)
+    np.testing.assert_allclose(line1.terminals[1].power, -45, rtol=1e-4)
     np.testing.assert_allclose(line2.terminals[0].power, -10, rtol=1e-4)
     np.testing.assert_allclose(line2.terminals[1].power,  10, rtol=1e-4)
-    np.testing.assert_allclose(line3.terminals[0].power, -50, rtol=1e-4)
-    np.testing.assert_allclose(line3.terminals[1].power,  50, rtol=1e-4)
+    np.testing.assert_allclose(line3.terminals[0].power, -55, rtol=1e-4)
+    np.testing.assert_allclose(line3.terminals[1].power,  55, rtol=1e-4)
 
-    np.testing.assert_allclose(net1.price, 101.8008,  rtol=1e-4)
-    np.testing.assert_allclose(net2.price, 196.1916, rtol=1e-4)
-    np.testing.assert_allclose(net3.price,  12.0975, rtol=1e-4)
+    np.testing.assert_allclose(net1.price, 101.7, rtol=1e-3)
+    np.testing.assert_allclose(net2.price, 101.7, rtol=1e-3)
+    np.testing.assert_allclose(net3.price,  13.1, rtol=1e-3)
 
 
 def test_group():
@@ -141,7 +141,7 @@ def test_vary_parameters():
 
     np.testing.assert_allclose(net1.price, 190.0136, rtol=1e-4)
     np.testing.assert_allclose(net2.price, 190.0136, rtol=1e-4)
-    np.testing.assert_allclose(net3.price,   1.2002, rtol=1e-4)
+    np.testing.assert_allclose(net3.price,   1.2000, rtol=1e-3)
 
     line3.power_max.value = 100
     prob.solve()

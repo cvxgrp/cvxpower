@@ -37,11 +37,12 @@ class Net(object):
         self.terminals = terminals
 
     def init_problem(self, time_horizon=1, num_scenarios=1):
-        self.constraint = sum(t._power for t in self.terminals) == 0
+        self.constraints = [sum(t._power[:,k] for t in self.terminals) == 0
+                            for k in xrange(num_scenarios)]
 
     @property
     def problem(self):
-        return cvx.Problem(cvx.Minimize(0), [self.constraint])
+        return cvx.Problem(cvx.Minimize(0), self.constraints)
 
     @property
     def results(self):
@@ -50,7 +51,10 @@ class Net(object):
     @property
     def price(self):
         """Price associated with this net."""
-        return self.constraint.dual_value
+        if (len(self.constraints) == 1 and
+            np.size(self.constraints[0].dual_value)) == 1:
+            return self.constraints[0].dual_value
+        return np.hstack(constr.dual_value.reshape(-1,1) for constr in self.constraints)
 
 
 class Device(object):
@@ -73,7 +77,7 @@ class Device(object):
     def cost(self):
         """Device objective, to be overriden by subclasses.
 
-        :rtype: cvxpy expression
+        :rtype: cvxpy expression of size :math:`T \times K`
         """
         return 0.0
 
@@ -81,7 +85,7 @@ class Device(object):
     def constraints(self):
         """Device constraints, to be overriden by subclasses.
 
-        :rtype: list of cvxpy expressions
+        :rtype: list of cvxpy constraints
         """
         return []
 
@@ -92,7 +96,7 @@ class Device(object):
         :rtype: :class:`cvxpy.Problem`
         """
         return cvx.Problem(
-            cvx.Minimize(self.cost),
+            cvx.Minimize(cvx.sum_entries(cvx.max_entries(self.cost, axis=1))),
             self.constraints +
             [terminal._power[0,k] == terminal._power[0,0]
              for terminal in self.terminals
@@ -216,9 +220,9 @@ class Results(object):
 
 def _update_mpc_results(t, time_steps, results_t, results_mpc):
     for key, val in results_t.power.iteritems():
-        results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0]
+        results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0,0]
     for key, val in results_t.price.iteritems():
-        results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0]
+        results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0,0]
 
 
 class OptimizationError(Exception):

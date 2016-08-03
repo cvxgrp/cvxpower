@@ -80,7 +80,7 @@ class Generator(Device):
     @property
     def cost(self):
         p = self.terminals[0].power_var
-        return self.alpha*cvx.sum_squares(p) - self.beta*cvx.sum_entries(p)
+        return self.alpha*cvx.square(p) - self.beta*p
 
     @property
     def constraints(self):
