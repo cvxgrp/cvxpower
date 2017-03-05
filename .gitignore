@@ -3,6 +3,7 @@
 
 # python
 *.pyc
+*.egg-info
 
 # sphinx
 _build

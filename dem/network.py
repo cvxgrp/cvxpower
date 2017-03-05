@@ -2,7 +2,6 @@
 
 import cvxpy as cvx
 import numpy as np
-import matplotlib.pyplot as plt
 import tqdm
 
 
@@ -202,6 +201,8 @@ class Results(object):
 
     def plot(self):
         """Plot results."""
+        import matplotlib.pyplot as plt
+
         fig, ax = plt.subplots(nrows=2, ncols=1)
 
         ax[0].set_ylabel("power")
