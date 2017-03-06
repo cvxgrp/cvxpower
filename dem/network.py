@@ -5,6 +5,14 @@ import numpy as np
 import tqdm
 
 
+def _get_all_terminals(device):
+    """Gets all terminals, including those nested within child devices."""
+    if isinstance(device, Group):
+        return [t for d in device.devices for t in _get_all_terminals(d)]
+    else:
+        return device.terminals
+
+
 class Terminal(object):
     """Device terminal."""
 
@@ -124,19 +132,10 @@ class Device(object):
         :type time_horizon: int
         :type num_scenarios: int
         """
-        for terminal in self.terminals:
+        for terminal in _get_all_terminals(self):
             terminal._init_problem(time_horizon, num_scenarios)
 
         self._init_problem(time_horizon, num_scenarios)
-
-
-def _get_all_terminals(device):
-    """Returns all terminals including those nested within child devices."""
-    if isinstance(device, Group):
-        return [t for d in device.devices for t in _get_all_terminals(d)]
-    else:
-        return device.terminals
-
 
 class Group(Device):
     """A single device composed of multiple devices and nets.
@@ -154,7 +153,7 @@ class Group(Device):
     :type terminals: list of :class:`Terminal`
     :type name: string
     """
-    def __init__(self, devices, nets=[], terminals=[], name=None):
+    def __init__(self, devices, nets, terminals=[], name=None):
         super(Group, self).__init__(terminals, name)
         self.devices = devices
         self.nets = nets
@@ -173,12 +172,6 @@ class Group(Device):
 
         for net in self.nets:
             net._init_problem(time_horizon, num_scenarios)
-
-    def init_problem(self, time_horizon=1, num_scenarios=1):
-        for terminal in _get_all_terminals(self):
-            terminal._init_problem(time_horizon, num_scenarios)
-
-        self._init_problem(time_horizon, num_scenarios)
 
 
 class Results(object):
