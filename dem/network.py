@@ -18,6 +18,9 @@ class Terminal(object):
         terminal."""
         return self._power.value
 
+    def _init_problem(self, time_horizon, num_scenarios):
+        self._power = cvx.Variable(time_horizon, num_scenarios)
+
 
 class Net(object):
     r"""Connection point for device terminals.
@@ -35,7 +38,7 @@ class Net(object):
         self.name = "Net" if name is None else name
         self.terminals = terminals
 
-    def init_problem(self, time_horizon=1, num_scenarios=1):
+    def _init_problem(self, time_horizon, num_scenarios):
         self.constraints = [sum(t._power[:,k] for t in self.terminals) == 0
                             for k in xrange(num_scenarios)]
 
@@ -110,6 +113,9 @@ class Device(object):
         return Results(power={(self, i): t.power
                               for i, t in enumerate(self.terminals)})
 
+    def _init_problem(self, time_horizon, num_scenarios):
+        pass
+
     def init_problem(self, time_horizon=1, num_scenarios=1):
         """Initialize the network optimization problem.
 
@@ -119,7 +125,17 @@ class Device(object):
         :type num_scenarios: int
         """
         for terminal in self.terminals:
-            terminal._power = cvx.Variable(time_horizon, num_scenarios)
+            terminal._init_problem(time_horizon, num_scenarios)
+
+        self._init_problem(time_horizon, num_scenarios)
+
+
+def _get_all_terminals(device):
+    """Returns all terminals including those nested within child devices."""
+    if isinstance(device, Group):
+        return [t for d in device.devices for t in _get_all_terminals(d)]
+    else:
+        return device.terminals
 
 
 class Group(Device):
@@ -129,7 +145,7 @@ class Group(Device):
     The `Group` device allows for creating new devices composed of existing base
     devices or other groups.
 
-    :param devices: Interal devices to be included.
+    :param devices: Internal devices to be included.
     :param nets: Internal nets to be included.
     :param terminals: (optional) Terminals for new device.
     :param name: (optional) Display name of group device
@@ -138,26 +154,31 @@ class Group(Device):
     :type terminals: list of :class:`Terminal`
     :type name: string
     """
-    def __init__(self, devices, nets, terminals=[], name=None):
+    def __init__(self, devices, nets=[], terminals=[], name=None):
         super(Group, self).__init__(terminals, name)
         self.devices = devices
         self.nets = nets
 
     @property
-    def children(self):
-        return self.devices + self.nets
-
-    @property
     def problem(self):
-        return sum(x.problem for x in self.children)
+        return sum(x.problem for x in self.devices + self.nets)
 
     @property
     def results(self):
-        return sum(x.results for x in self.children)
+        return sum(x.results for x in self.devices + self.nets)
+
+    def _init_problem(self, time_horizon, num_scenarios):
+        for device in self.devices:
+            device._init_problem(time_horizon, num_scenarios)
+
+        for net in self.nets:
+            net._init_problem(time_horizon, num_scenarios)
 
     def init_problem(self, time_horizon=1, num_scenarios=1):
-        for x in self.children:
-            x.init_problem(time_horizon, num_scenarios)
+        for terminal in _get_all_terminals(self):
+            terminal._init_problem(time_horizon, num_scenarios)
+
+        self._init_problem(time_horizon, num_scenarios)
 
 
 class Results(object):

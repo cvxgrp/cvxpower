@@ -1,8 +1,8 @@
 
-from dem import *
-
-import numpy as np
 import cvxpy as cvx
+import numpy as np
+
+from dem import *
 
 #
 # Static test cases
