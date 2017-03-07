@@ -23,18 +23,20 @@ RUN apt-get update && apt-get install -y \
   wget \
   zip && apt-get clean
 
-# Python 2.7
+# Python 2
 RUN apt-get install -y \
     python-dev \
     python-pip
-RUN pip2 install -U numpy scipy nose wheel
-RUN pip2 install -U cvxpy
+RUN python2 -m pip install -U pip
+RUN python2 -m pip install -U numpy scipy
+RUN python2 -m pip install -U cvxpy
 
-# Python 3.4
+# Python 3
 RUN apt-get install -y \
     python3-dev \
     python3-pip
-RUN pip3 install -U numpy scipy nose wheel
-RUN pip3 install -U cvxpy
+RUN python3 -m pip install -U pip
+RUN python3 -m pip install -U numpy scipy
+RUN python3 -m pip install -U cvxpy
 
 CMD ["bash"]
