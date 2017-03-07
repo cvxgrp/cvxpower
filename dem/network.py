@@ -48,7 +48,7 @@ class Net(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.constraints = [sum(t._power[:,k] for t in self.terminals) == 0
-                            for k in xrange(num_scenarios)]
+                            for k in range(num_scenarios)]
 
     @property
     def problem(self):
@@ -110,7 +110,7 @@ class Device(object):
             self.constraints +
             [terminal._power[0,k] == terminal._power[0,0]
              for terminal in self.terminals
-             for k in xrange(1, terminal._power.size[1])])
+             for k in range(1, terminal._power.size[1])])
 
     @property
     def results(self):
