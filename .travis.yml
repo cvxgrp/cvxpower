@@ -1,0 +1,15 @@
+sudo: required
+
+language: python
+
+services:
+  - docker
+
+before_install:
+  - docker pull cvxgrp/dem
+
+script:
+  - docker run -v $TRAVIS_BUILD_DIR:/build/dem cvxgrp/dem /build/dem/tools/run_ci.sh
+
+notifications:
+  email: false
