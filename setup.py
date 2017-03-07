@@ -9,4 +9,5 @@ setup(
         "cvxpy",
         "tqdm",
     ],
+    test_suite = "dem",
 )
