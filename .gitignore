@@ -4,6 +4,7 @@
 # python
 *.pyc
 *.egg-info
+.eggs
 
 # sphinx
 _build
