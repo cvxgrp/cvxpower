@@ -11,7 +11,7 @@ class GeneratorWithBidCurve(Generator):
        max(cost0, a_1*p + b_1, ..., a_N*p + b_N),
 
     where a_i is the price for bid curve segment i and b_i is the appropriate
-    offset, depending on the power for segment i.
+    offset, depending on previous segments.
     """
     def __init__(self, no_load_cost=0, bid_curve=[], name=None):
         super(GeneratorWithBidCurve, self).__init__(name=name)

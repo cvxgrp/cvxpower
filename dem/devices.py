@@ -60,8 +60,8 @@ class Generator(Device):
     """
     def __init__(
             self,
-            power_min=0,
-            power_max=0,
+            power_min=None,
+            power_max=None,
             ramp_min=None,
             ramp_max=None,
             power_init=0,
@@ -84,12 +84,18 @@ class Generator(Device):
 
     @property
     def constraints(self):
+        p = -self.terminals[0].power_var
+
+        constraints = []
+        if self.power_min is not None:
+            constraints += [p >= self.power_min]
+        if self.power_max is not None:
+            constraints += [p <= self.power_max]
+
         # TODO(mwytock): Add ramp constraints
 
-        return [
-            -self.terminals[0].power_var <= self.power_max,
-            -self.terminals[0].power_var >= self.power_min
-        ]
+        return constraints
+
 
 class FixedLoad(Device):
     """Fixed load.
