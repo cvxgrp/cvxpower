@@ -51,6 +51,4 @@ load = FixedLoad(power=43)
 net = Net([gen.terminals[0], load.terminals[0]])
 
 network = Group([gen, load], [net])
-network.init_problem()
-network.problem.solve()
-print(network.results.summary())
+print(network.optimize())

@@ -193,6 +193,9 @@ class Results(object):
         status = self.status if self.status is not None else other.status
         return Results(power, price, status)
 
+    def __str__(self):
+        return self.summary()
+
     def summary(self):
         """Summary of results.
 
