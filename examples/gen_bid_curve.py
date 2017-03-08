@@ -1,4 +1,4 @@
-
+"""An example of generator with cost function specified by bid curve."""
 
 import cvxpy as cvx
 from dem import *
