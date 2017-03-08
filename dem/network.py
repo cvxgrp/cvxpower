@@ -50,9 +50,7 @@ class Net(object):
         self.constraints = [sum(t._power[:,k] for t in self.terminals) == 0
                             for k in range(num_scenarios)]
 
-    @property
-    def problem(self):
-        return cvx.Problem(cvx.Minimize(0), self.constraints)
+        self.problem = cvx.Problem(cvx.Minimize(0), self.constraints)
 
     @property
     def results(self):
@@ -82,6 +80,7 @@ class Device(object):
     def __init__(self, terminals, name=None):
         self.name = type(self).__name__ if name is None else name
         self.terminals = terminals
+        self.problem = None
 
     @property
     def cost(self):
@@ -100,29 +99,23 @@ class Device(object):
         return []
 
     @property
-    def problem(self):
-        """The network optimization problem.
-
-        :rtype: :class:`cvxpy.Problem`
-        """
-        return cvx.Problem(
-            cvx.Minimize(cvx.sum_entries(cvx.max_entries(self.cost, axis=1))),
-            self.constraints +
-            [terminal._power[0,k] == terminal._power[0,0]
-             for terminal in self.terminals
-             for k in range(1, terminal._power.size[1])])
-
-    @property
     def results(self):
         """Network optimization results.
 
         :rtype: :class:`Results`
         """
+        status = self.problem.status if self.problem else None
         return Results(power={(self, i): t.power
-                              for i, t in enumerate(self.terminals)})
+                              for i, t in enumerate(self.terminals)},
+                       status=status)
 
     def _init_problem(self, time_horizon, num_scenarios):
-        pass
+        self.problem = cvx.Problem(
+            cvx.Minimize(cvx.sum_entries(cvx.max_entries(self.cost, axis=1))),
+            self.constraints +
+            [terminal._power[0,k] == terminal._power[0,0]
+             for terminal in self.terminals
+             for k in range(1, terminal._power.size[1])])
 
     def init_problem(self, time_horizon=1, num_scenarios=1):
         """Initialize the network optimization problem.
@@ -136,6 +129,11 @@ class Device(object):
             terminal._init_problem(time_horizon, num_scenarios)
 
         self._init_problem(time_horizon, num_scenarios)
+
+    def optimize(self, time_horizon=1, num_scenarios=1, **kwargs):
+        self.init_problem(time_horizon, num_scenarios)
+        self.problem.solve(**kwargs)
+        return self.results
 
 class Group(Device):
     """A single device composed of multiple devices and nets.
@@ -159,12 +157,10 @@ class Group(Device):
         self.nets = nets
 
     @property
-    def problem(self):
-        return sum(x.problem for x in self.devices + self.nets)
-
-    @property
     def results(self):
-        return sum(x.results for x in self.devices + self.nets)
+        results = sum(x.results for x in self.devices + self.nets)
+        results.status = self.problem.status if self.problem else None
+        return results
 
     def _init_problem(self, time_horizon, num_scenarios):
         for device in self.devices:
@@ -173,13 +169,16 @@ class Group(Device):
         for net in self.nets:
             net._init_problem(time_horizon, num_scenarios)
 
+        self.problem = sum(x.problem for x in self.devices + self.nets)
+
 
 class Results(object):
     """Network optimization results."""
 
-    def __init__(self, power=None, price=None):
+    def __init__(self, power=None, price=None, status=None):
         self.power = power if power else {}
         self.price = price if price else {}
+        self.status = status
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -191,24 +190,29 @@ class Results(object):
         price = self.price.copy()
         power.update(other.power)
         price.update(other.price)
-        return Results(power, price)
+        status = self.status if self.status is not None else other.status
+        return Results(power, price, status)
 
     def summary(self):
         """Summary of results.
 
         :rtype: str
         """
-        retval = ""
+        retval = "Status: " + self.status if self.status else "none"
+        if self.status != cvx.OPTIMAL:
+            return retval
+
+        retval += "\n"
         retval += "%-20s %10s\n" % ("Terminal", "Power")
         retval += "%-20s %10s\n" % ("--------", "-----")
-        for device_terminal, value in self.power.iteritems():
+        for device_terminal, value in self.power.items():
             label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
             retval += "%-20s %10.4f\n" % (label, value)
 
         retval += "\n"
         retval += "%-20s %10s\n" % ("Net", "Price")
         retval += "%-20s %10s\n" % ("---", "-----")
-        for net, value in self.price.iteritems():
+        for net, value in self.price.items():
             retval += "%-20s %10.4f\n" % (net.name, value)
 
         return retval
@@ -220,13 +224,13 @@ class Results(object):
         fig, ax = plt.subplots(nrows=2, ncols=1)
 
         ax[0].set_ylabel("power")
-        for device_terminal, value in self.power.iteritems():
+        for device_terminal, value in self.power.items():
             label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
             ax[0].plot(value, label=label)
         ax[0].legend(loc="best")
 
         ax[1].set_ylabel("price")
-        for net, value in self.price.iteritems():
+        for net, value in self.price.items():
             ax[1].plot(value, label=net.name)
         ax[1].legend(loc="best")
 
@@ -234,9 +238,9 @@ class Results(object):
 
 
 def _update_mpc_results(t, time_steps, results_t, results_mpc):
-    for key, val in results_t.power.iteritems():
+    for key, val in results_t.power.items():
         results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0,0]
-    for key, val in results_t.price.iteritems():
+    for key, val in results_t.price.items():
         results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0,0]
 
 

@@ -16,7 +16,7 @@ class StaticTest(unittest.TestCase):
 
         np.testing.assert_allclose(load.terminals[0].power, 100)
         np.testing.assert_allclose(gen.terminals[0].power, -100)
-        np.testing.assert_allclose(net.price, 120, rtol=1e-3)
+        np.testing.assert_allclose(net.price, 120, rtol=1e-2)
 
 
     def test_curtailable_load(self):
@@ -27,9 +27,9 @@ class StaticTest(unittest.TestCase):
         network.init_problem()
         network.problem.solve()
 
-        np.testing.assert_allclose(load.terminals[0].power, 25.00, rtol=1e-3)
-        np.testing.assert_allclose(gen.terminals[0].power, -25, rtol=1e-3)
-        np.testing.assert_allclose(net.price, 150, rtol=1e-4)
+        np.testing.assert_allclose(load.terminals[0].power, 25.00, rtol=1e-2)
+        np.testing.assert_allclose(gen.terminals[0].power, -25, rtol=1e-2)
+        np.testing.assert_allclose(net.price, 150, rtol=1e-2)
 
 
     def test_two_generators_with_transmission(self):
@@ -45,14 +45,14 @@ class StaticTest(unittest.TestCase):
         network.init_problem()
         network.problem.solve()
 
-        np.testing.assert_allclose(load.terminals[0].power, 100, rtol=1e-4)
-        np.testing.assert_allclose(gen1.terminals[0].power, -50, rtol=1e-4)
-        np.testing.assert_allclose(gen2.terminals[0].power, -50, rtol=1e-4)
-        np.testing.assert_allclose(line.terminals[0].power, -50, rtol=1e-4)
-        np.testing.assert_allclose(line.terminals[1].power,  50, rtol=1e-4)
+        np.testing.assert_allclose(load.terminals[0].power, 100, rtol=1e-2)
+        np.testing.assert_allclose(gen1.terminals[0].power, -50, rtol=1e-2)
+        np.testing.assert_allclose(gen2.terminals[0].power, -50, rtol=1e-2)
+        np.testing.assert_allclose(line.terminals[0].power, -50, rtol=1e-2)
+        np.testing.assert_allclose(line.terminals[1].power,  50, rtol=1e-2)
 
-        np.testing.assert_allclose(net1.price, 101,  rtol=1e-4)
-        np.testing.assert_allclose(net2.price, 10.1, rtol=1e-3)
+        np.testing.assert_allclose(net1.price, 101,  rtol=1e-2)
+        np.testing.assert_allclose(net2.price, 10.1, rtol=1e-2)
 
 
     def test_three_buses(self):
@@ -72,20 +72,20 @@ class StaticTest(unittest.TestCase):
         network.init_problem()
         network.problem.solve()
 
-        np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-4)
-        np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-4)
-        np.testing.assert_allclose( gen1.terminals[0].power, -85, rtol=1e-4)
-        np.testing.assert_allclose( gen2.terminals[0].power, -65, rtol=1e-4)
-        np.testing.assert_allclose(line1.terminals[0].power,  45, rtol=1e-4)
-        np.testing.assert_allclose(line1.terminals[1].power, -45, rtol=1e-4)
-        np.testing.assert_allclose(line2.terminals[0].power, -10, rtol=1e-4)
-        np.testing.assert_allclose(line2.terminals[1].power,  10, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[0].power, -55, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[1].power,  55, rtol=1e-4)
+        np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-2)
+        np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-2)
+        np.testing.assert_allclose( gen1.terminals[0].power, -85, rtol=1e-2)
+        np.testing.assert_allclose( gen2.terminals[0].power, -65, rtol=1e-2)
+        np.testing.assert_allclose(line1.terminals[0].power,  45, rtol=1e-2)
+        np.testing.assert_allclose(line1.terminals[1].power, -45, rtol=1e-2)
+        np.testing.assert_allclose(line2.terminals[0].power, -10, rtol=1e-2)
+        np.testing.assert_allclose(line2.terminals[1].power,  10, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[0].power, -55, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[1].power,  55, rtol=1e-2)
 
-        np.testing.assert_allclose(net1.price, 101.7, rtol=1e-3)
-        np.testing.assert_allclose(net2.price, 101.7, rtol=1e-3)
-        np.testing.assert_allclose(net3.price,  13.1, rtol=1e-3)
+        np.testing.assert_allclose(net1.price, 101.7, rtol=1e-2)
+        np.testing.assert_allclose(net2.price, 101.7, rtol=1e-2)
+        np.testing.assert_allclose(net3.price,  13.1, rtol=1e-2)
 
 
     def test_group(self):
@@ -105,7 +105,7 @@ class StaticTest(unittest.TestCase):
         np.testing.assert_allclose(home.terminals[0].power,  3)
         np.testing.assert_allclose(grid.terminals[0].power, -3)
 
-        np.testing.assert_allclose(net.price, 100.3, rtol=1e-4)
+        np.testing.assert_allclose(net.price, 100.3, rtol=1e-2)
 
 
     def test_vary_parameters(self):
@@ -126,37 +126,37 @@ class StaticTest(unittest.TestCase):
 
         line3.power_max.value = 50
         prob.solve()
-        np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-4)
-        np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-4)
-        np.testing.assert_allclose( gen1.terminals[0].power, -90, rtol=1e-4)
-        np.testing.assert_allclose( gen2.terminals[0].power, -60, rtol=1e-4)
-        np.testing.assert_allclose(line1.terminals[0].power,  50, rtol=1e-4)
-        np.testing.assert_allclose(line1.terminals[1].power, -50, rtol=1e-4)
-        np.testing.assert_allclose(line2.terminals[0].power, -10, rtol=1e-4)
-        np.testing.assert_allclose(line2.terminals[1].power,  10, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[0].power, -50, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[1].power,  50, rtol=1e-4)
+        np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-2)
+        np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-2)
+        np.testing.assert_allclose( gen1.terminals[0].power, -90, rtol=1e-2)
+        np.testing.assert_allclose( gen2.terminals[0].power, -60, rtol=1e-2)
+        np.testing.assert_allclose(line1.terminals[0].power,  50, rtol=1e-2)
+        np.testing.assert_allclose(line1.terminals[1].power, -50, rtol=1e-2)
+        np.testing.assert_allclose(line2.terminals[0].power, -10, rtol=1e-2)
+        np.testing.assert_allclose(line2.terminals[1].power,  10, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[0].power, -50, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[1].power,  50, rtol=1e-2)
 
-        np.testing.assert_allclose(net1.price, 190.0136, rtol=1e-4)
-        np.testing.assert_allclose(net2.price, 190.0136, rtol=1e-4)
-        np.testing.assert_allclose(net3.price,   1.2000, rtol=1e-3)
+        np.testing.assert_allclose(net1.price, 190.0136, rtol=1e-2)
+        np.testing.assert_allclose(net2.price, 190.0136, rtol=1e-2)
+        np.testing.assert_allclose(net3.price,   1.2000, rtol=1e-2)
 
         line3.power_max.value = 100
         prob.solve()
-        np.testing.assert_allclose(load1.terminals[0].power,   50, rtol=1e-4)
-        np.testing.assert_allclose(load2.terminals[0].power,  100, rtol=1e-4)
-        np.testing.assert_allclose( gen1.terminals[0].power,  -40, rtol=1e-4)
-        np.testing.assert_allclose( gen2.terminals[0].power, -110, rtol=1e-4)
+        np.testing.assert_allclose(load1.terminals[0].power,   50, rtol=1e-2)
+        np.testing.assert_allclose(load2.terminals[0].power,  100, rtol=1e-2)
+        np.testing.assert_allclose( gen1.terminals[0].power,  -40, rtol=1e-2)
+        np.testing.assert_allclose( gen2.terminals[0].power, -110, rtol=1e-2)
         np.testing.assert_allclose(line1.terminals[0].power,    0, atol=1e-4)
         np.testing.assert_allclose(line1.terminals[1].power,    0, atol=1e-4)
-        np.testing.assert_allclose(line2.terminals[0].power,  -10, rtol=1e-4)
-        np.testing.assert_allclose(line2.terminals[1].power,   10, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[0].power, -100, rtol=1e-4)
-        np.testing.assert_allclose(line3.terminals[1].power,  100, rtol=1e-4)
+        np.testing.assert_allclose(line2.terminals[0].power,  -10, rtol=1e-2)
+        np.testing.assert_allclose(line2.terminals[1].power,   10, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[0].power, -100, rtol=1e-2)
+        np.testing.assert_allclose(line3.terminals[1].power,  100, rtol=1e-2)
 
-        np.testing.assert_allclose(net1.price, 89.9965, rtol=1e-4)
-        np.testing.assert_allclose(net2.price, 89.9965, rtol=1e-4)
-        np.testing.assert_allclose(net3.price,  2.2009, rtol=1e-4)
+        np.testing.assert_allclose(net1.price, 89.9965, rtol=1e-2)
+        np.testing.assert_allclose(net2.price, 89.9965, rtol=1e-2)
+        np.testing.assert_allclose(net3.price,  2.2009, rtol=1e-2)
 
 
 T = 10
@@ -173,7 +173,7 @@ class DynamicTest(unittest.TestCase):
         network.problem.solve()
         np.testing.assert_allclose(load.terminals[0].power,  p_load, atol=1e-4)
         np.testing.assert_allclose( gen.terminals[0].power, -p_load, atol=1e-4)
-        np.testing.assert_allclose(net.price, p_load*200 + 100, rtol=1e-4)
+        np.testing.assert_allclose(net.price, p_load*200 + 100, rtol=1e-2)
 
     def test_storage(self):
         load = FixedLoad(power=p_load)
