@@ -316,11 +316,17 @@ class TransmissionLine(Device):
 
     @property
     def constraints(self):
-        return [
+        constrs = [
             self.terminals[0].power_var + self.terminals[1].power_var == 0,
-            (cvx.abs((self.terminals[0].power_var -
-                      self.terminals[1].power_var)/2) <= self.power_max)
         ]
+
+        if self.power_max is not None:
+            constrs += [
+                (cvx.abs((self.terminals[0].power_var -
+                          self.terminals[1].power_var)/2) <= self.power_max)
+            ]
+
+        return constrs
 
 
 class Storage(Device):
