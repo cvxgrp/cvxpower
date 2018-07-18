@@ -10,7 +10,7 @@ power flows.
 import cvxpy as cvx
 import numpy as np
 
-from dem.network import Device, Terminal
+from .network import Device, Terminal
 
 
 class Generator(Device):

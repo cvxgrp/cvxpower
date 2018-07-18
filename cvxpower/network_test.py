@@ -1,9 +1,11 @@
 
 import unittest
 
-from dem import *
+from cvxpower import *
+
 
 class ResultsTest(unittest.TestCase):
+
     def test_summary_normal(self):
         load = FixedLoad(power=10)
         gen = Generator(power_max=10)
@@ -22,7 +24,9 @@ class ResultsTest(unittest.TestCase):
         network.problem.solve()
         assert "infeasible" in network.results.summary()
 
+
 class DeviceTest(unittest.TestCase):
+
     def test_optimize(self):
         load = FixedLoad(power=1)
         gen = Generator(power_max=10)

@@ -3,7 +3,7 @@ import cvxpy as cvx
 import numpy as np
 import unittest
 
-from dem import *
+from cvxpower import *
 
 
 class StaticTest(unittest.TestCase):

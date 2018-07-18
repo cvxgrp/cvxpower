@@ -8,3 +8,6 @@
 
 # sphinx
 _build
+
+#OSX
+*.DS_Store
