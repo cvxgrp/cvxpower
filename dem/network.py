@@ -27,7 +27,7 @@ class Terminal(object):
         return self._power.value
 
     def _init_problem(self, time_horizon, num_scenarios):
-        self._power = cvx.Variable(time_horizon, num_scenarios)
+        self._power = cvx.Variable(shape=(time_horizon, num_scenarios))
 
 
 class Net(object):
@@ -47,7 +47,7 @@ class Net(object):
         self.terminals = terminals
 
     def _init_problem(self, time_horizon, num_scenarios):
-        self.constraints = [sum(t._power[:,k] for t in self.terminals) == 0
+        self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
                             for k in range(num_scenarios)]
 
         self.problem = cvx.Problem(cvx.Minimize(0), self.constraints)
@@ -60,9 +60,10 @@ class Net(object):
     def price(self):
         """Price associated with this net."""
         if (len(self.constraints) == 1 and
-            np.size(self.constraints[0].dual_value)) == 1:
+                np.size(self.constraints[0].dual_value)) == 1:
             return self.constraints[0].dual_value
-        return np.hstack(constr.dual_value.reshape(-1,1) for constr in self.constraints)
+        return np.hstack(constr.dual_value.reshape(-1, 1)
+                         for constr in self.constraints)
 
 
 class Device(object):
@@ -88,7 +89,7 @@ class Device(object):
 
         :rtype: cvxpy expression of size :math:`T \times K`
         """
-        return 0.0
+        return np.matrix(0.0)
 
     @property
     def constraints(self):
@@ -111,11 +112,13 @@ class Device(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.problem = cvx.Problem(
-            cvx.Minimize(cvx.sum_entries(cvx.max_entries(self.cost, axis=1))),
+            cvx.Minimize(cvx.sum(cvx.max(self.cost, axis=1))),
+            # TODO(enzo) we should weight by probs
             self.constraints +
-            [terminal._power[0,k] == terminal._power[0,0]
+            [terminal._power[0, k] == terminal._power[0, 0]
              for terminal in self.terminals
-             for k in range(1, terminal._power.size[1])])
+             for k in range(1, terminal._power.shape[1] if
+                            len(terminal._power.shape) > 1 else 0)])
 
     def init_problem(self, time_horizon=1, num_scenarios=1):
         """Initialize the network optimization problem.
@@ -135,6 +138,7 @@ class Device(object):
         self.problem.solve(**kwargs)
         return self.results
 
+
 class Group(Device):
     """A single device composed of multiple devices and nets.
 
@@ -151,6 +155,7 @@ class Group(Device):
     :type terminals: list of :class:`Terminal`
     :type name: string
     """
+
     def __init__(self, devices, nets, terminals=[], name=None):
         super(Group, self).__init__(terminals, name)
         self.devices = devices
@@ -220,7 +225,7 @@ class Results(object):
 
         return retval
 
-    def plot(self):
+    def plot(self):  # , print_terminals=True, index=None):
         """Plot results."""
         import matplotlib.pyplot as plt
 
@@ -228,12 +233,22 @@ class Results(object):
 
         ax[0].set_ylabel("power")
         for device_terminal, value in self.power.items():
-            label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
+            # if print_terminals:
+            label = "%s[%d]" % (device_terminal[0].name,
+                                device_terminal[1])
+            # else:
+            #    label = device_terminal[0].name
+            # pd.Series(value.A1 if 'A1' in dir(value) else value,
+            #          index=index).plot(ax=ax[0], label=label)
             ax[0].plot(value, label=label)
         ax[0].legend(loc="best")
+        # suppress xticks (enzo)
+        # ax[0].xaxis.set_major_locator(plt.NullLocator())
 
         ax[1].set_ylabel("price")
         for net, value in self.price.items():
+            # pd.Series(value.A1 if 'A1' in dir(value) else value,
+            #          index=index).plot(ax=ax[1], label=net.name)
             ax[1].plot(value, label=net.name)
         ax[1].legend(loc="best")
 
@@ -242,9 +257,9 @@ class Results(object):
 
 def _update_mpc_results(t, time_steps, results_t, results_mpc):
     for key, val in results_t.power.items():
-        results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0,0]
+        results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
     for key, val in results_t.price.items():
-        results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0,0]
+        results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
 
 
 class OptimizationError(Exception):

@@ -58,6 +58,7 @@ class Generator(Device):
     :type power_init: float
     :type name: string
     """
+
     def __init__(
             self,
             power_min=None,
@@ -80,7 +81,7 @@ class Generator(Device):
     @property
     def cost(self):
         p = self.terminals[0].power_var
-        return self.alpha*cvx.square(p) - self.beta*p
+        return self.alpha * cvx.square(p) - self.beta * p
 
     @property
     def constraints(self):
@@ -112,6 +113,7 @@ class FixedLoad(Device):
     :type power: float or sequence of float
     :type name: string
     """
+
     def __init__(self, power=None, name=None):
         super(FixedLoad, self).__init__([Terminal()], name)
         self.power = power
@@ -164,6 +166,7 @@ class ThermalLoad(Device):
     :type efficiency: float or sequence of floats
     :type capacity: float or sequence of floats
     """
+
     def __init__(self,
                  temp_init=None, temp_min=None, temp_max=None, temp_amb=None,
                  power_max=None,
@@ -185,8 +188,8 @@ class ThermalLoad(Device):
     def constraints(self):
         alpha = self.amb_conduct_coeff / self.capacity
         beta = self.efficiency / self.capacity
-        N = self.terminals[0].power_var.size[0]
-        self.temp = cvx.Variable(N)
+        N = self.terminals[0].power_var.shape[0]
+        self.temp = cvx.Variable(shape=(N, 1))
 
         constrs = [
             self.terminals[0].power_var <= self.power_max,
@@ -199,11 +202,11 @@ class ThermalLoad(Device):
             constrs += [self.temp >= self.temp_min]
 
         for i in range(N):
-            temp_prev = self.temp[i-1] if i else self.temp_init
+            temp_prev = self.temp[i - 1] if i else self.temp_init
             constrs += [
                 self.temp[i] == (
-                    temp_prev + alpha*(self.temp_amb[i] - temp_prev) -
-                    beta*self.terminals[0].power_var[i])
+                    temp_prev + alpha * (self.temp_amb[i] - temp_prev) -
+                    beta * self.terminals[0].power_var[i])
             ]
 
         return constrs
@@ -232,6 +235,7 @@ class CurtailableLoad(Device):
     :type alpha: float or sequence of float
     :type name: string
     """
+
     def __init__(self, power=None, alpha=None, name=None):
         super(CurtailableLoad, self).__init__([Terminal()], name)
         self.power = power
@@ -239,7 +243,7 @@ class CurtailableLoad(Device):
 
     @property
     def cost(self):
-        return self.alpha*cvx.pos(self.power - self.terminals[0].power_var)
+        return self.alpha * cvx.pos(self.power - self.terminals[0].power_var)
 
 
 class DeferrableLoad(Device):
@@ -270,6 +274,7 @@ class DeferrableLoad(Device):
     :type time_end: int
     :type name: string
     """
+
     def __init__(self, energy=0, power_max=None, time_start=0, time_end=None,
                  name=None):
         super(DeferrableLoad, self).__init__([Terminal()], name)
@@ -282,7 +287,7 @@ class DeferrableLoad(Device):
     def constraints(self):
         idx = slice(self.time_start, self.time_end)
         return [
-            cvx.sum_entries(self.terminals[0].power_var[idx]) >= self.energy,
+            cvx.sum(self.terminals[0].power_var[idx]) >= self.energy,
             self.terminals[0].power_var >= 0,
             self.terminals[0].power_var <= self.power_max,
         ]
@@ -310,6 +315,7 @@ class TransmissionLine(Device):
     :type power_max: float or sequence of floats
     :type name: string
     """
+
     def __init__(self, power_max=None, name=None):
         super(TransmissionLine, self).__init__([Terminal(), Terminal()], name)
         self.power_max = power_max
@@ -323,7 +329,7 @@ class TransmissionLine(Device):
         if self.power_max is not None:
             constrs += [
                 (cvx.abs((self.terminals[0].power_var -
-                          self.terminals[1].power_var)/2) <= self.power_max)
+                          self.terminals[1].power_var) / 2) <= self.power_max)
             ]
 
         return constrs
@@ -363,6 +369,7 @@ class Storage(Device):
     :type energy_max: float or sequence of floats
     :type name: string
     """
+
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
                  energy_max=None, name=None):
         super(Storage, self).__init__([Terminal()], name)
@@ -373,9 +380,9 @@ class Storage(Device):
 
     @property
     def constraints(self):
-        N = self.terminals[0].power_var.size[0]
-        cumsum = np.tril(np.ones((N,N)), 0)
-        self.energy = self.energy_init + cumsum*self.terminals[0].power_var
+        N = self.terminals[0].power_var.shape[0]
+        cumsum = np.tril(np.ones((N, N)), 0)
+        self.energy = self.energy_init + cumsum * self.terminals[0].power_var
         return [
             self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
