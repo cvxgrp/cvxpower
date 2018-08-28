@@ -112,7 +112,7 @@ class Device(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.problem = cvx.Problem(
-            cvx.Minimize(cvx.sum(cvx.max(self.cost, axis=1))),
+            cvx.Minimize(cvx.sum(cvx.sum(self.cost, axis=1)) / num_scenarios),
             # TODO(enzo) we should weight by probs
             self.constraints +
             [terminal._power[0, k] == terminal._power[0, 0]
@@ -201,6 +201,9 @@ class Results(object):
     def __str__(self):
         return self.summary()
 
+    def __repr__(self):
+        return self.summary()
+
     def summary(self):
         """Summary of results.
 
@@ -225,11 +228,11 @@ class Results(object):
 
         return retval
 
-    def plot(self):  # , print_terminals=True, index=None):
+    def plot(self, index=None, **kwargs):  # , print_terminals=True):
         """Plot results."""
         import matplotlib.pyplot as plt
 
-        fig, ax = plt.subplots(nrows=2, ncols=1)
+        fig, ax = plt.subplots(nrows=2, ncols=1, **kwargs)
 
         ax[0].set_ylabel("power")
         for device_terminal, value in self.power.items():
@@ -240,7 +243,10 @@ class Results(object):
             #    label = device_terminal[0].name
             # pd.Series(value.A1 if 'A1' in dir(value) else value,
             #          index=index).plot(ax=ax[0], label=label)
-            ax[0].plot(value, label=label)
+            if index is None:
+                ax[0].plot(value, label=label)
+            else:
+                ax[0].plot(index, value, label=label)
         ax[0].legend(loc="best")
         # suppress xticks (enzo)
         # ax[0].xaxis.set_major_locator(plt.NullLocator())
@@ -249,7 +255,10 @@ class Results(object):
         for net, value in self.price.items():
             # pd.Series(value.A1 if 'A1' in dir(value) else value,
             #          index=index).plot(ax=ax[1], label=net.name)
-            ax[1].plot(value, label=net.name)
+            if index is None:
+                ax[1].plot(value, label=net.name)
+            else:
+                ax[1].plot(index, value, label=net.name)
         ax[1].legend(loc="best")
 
         return ax
@@ -297,14 +306,20 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
     :raise: :class:`OptimizationError`
 
     """
+    total_cost = 0.
     problem = device.problem
     results = Results()
     for t in tqdm.trange(time_steps):
         predict(t)
         problem.solve(**kwargs)
         if problem.status != cvx.OPTIMAL:
+            # temporary
             raise OptimizationError(
                 "failed at iteration %d, %s" % (t, problem.status))
+        stage_cost = sum([device.cost[0, 0]
+                          for device in device.devices]).value
+        #print('at time %s, adding cost %f' % (t, stage_cost))
+        total_cost += stage_cost
         execute(t)
         _update_mpc_results(t, time_steps, device.results, results)
-    return results
+    return total_cost, results

@@ -371,21 +371,25 @@ class Storage(Device):
     """
 
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
-                 energy_max=None, name=None):
+                 energy_final=None, energy_max=None, name=None, ):
         super(Storage, self).__init__([Terminal()], name)
         self.discharge_max = discharge_max
         self.charge_max = charge_max
         self.energy_init = energy_init
         self.energy_max = energy_max
+        self.energy_final = energy_final
 
     @property
     def constraints(self):
         N = self.terminals[0].power_var.shape[0]
         cumsum = np.tril(np.ones((N, N)), 0)
         self.energy = self.energy_init + cumsum * self.terminals[0].power_var
-        return [
+        constr = [
             self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
             self.energy <= self.energy_max,
             self.energy >= 0,
         ]
+        if self.energy_final is not None:
+            constr += [self.energy[-1] == self.energy_final]
+        return constr
