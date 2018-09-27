@@ -68,7 +68,8 @@ class Generator(Device):
             power_init=0,
             alpha=0,
             beta=0,
-            name=None):
+            name=None,
+            len_interval=1):
         super(Generator, self).__init__([Terminal()], name)
         self.power_min = power_min
         self.power_max = power_max
@@ -77,6 +78,7 @@ class Generator(Device):
         self.power_init = power_init
         self.alpha = alpha
         self.beta = beta
+        self.len_interval = len_interval  # in hours
 
     @property
     def cost(self):
@@ -371,21 +373,24 @@ class Storage(Device):
     """
 
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
-                 energy_final=None, energy_max=None, name=None, ):
+                 energy_final=None, energy_max=None, name=None, len_interval=1.):
         super(Storage, self).__init__([Terminal()], name)
         self.discharge_max = discharge_max
         self.charge_max = charge_max
         self.energy_init = energy_init
         self.energy_max = energy_max
         self.energy_final = energy_final
+        self.len_interval = len_interval  # in hours
 
     @property
     def constraints(self):
         N = self.terminals[0].power_var.shape[0]
         cumsum = np.tril(np.ones((N, N)), 0)
-        self.energy = self.energy_init + cumsum * self.terminals[0].power_var
+        self.energy = self.energy_init + self.len_interval * \
+            cumsum * self.terminals[0].power_var
         constr = [
-            self.terminals[0].power_var >= -self.discharge_max,
+            self.terminals[0].power_var >= -
+            self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
             self.energy <= self.energy_max,
             self.energy >= 0,

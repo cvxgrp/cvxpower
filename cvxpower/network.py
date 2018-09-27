@@ -47,6 +47,7 @@ class Net(object):
         self.terminals = terminals
 
     def _init_problem(self, time_horizon, num_scenarios):
+        self.num_scenarios = num_scenarios
         self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
                             for k in range(num_scenarios)]
 
@@ -62,6 +63,12 @@ class Net(object):
         if (len(self.constraints) == 1 and
                 np.size(self.constraints[0].dual_value)) == 1:
             return self.constraints[0].dual_value
+        # TODO(enzo) hardcoded 1/K probability
+        # return np.sum(constr.dual_value
+        #               for constr in self.constraints)
+        if self.num_scenarios > 1:
+            return np.matrix(np.sum([constr.dual_value[0]
+                                     for constr in self.constraints], 0))
         return np.hstack(constr.dual_value.reshape(-1, 1)
                          for constr in self.constraints)
 
@@ -205,7 +212,7 @@ class Results(object):
         return self.summary()
 
     def summary(self):
-        """Summary of results.
+        """Summary of results. Only works for single period optimization.
 
         :rtype: str
         """
