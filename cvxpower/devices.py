@@ -385,16 +385,22 @@ class Storage(Device):
     @property
     def constraints(self):
         N = self.terminals[0].power_var.shape[0]
-        cumsum = np.tril(np.ones((N, N)), 0)
-        self.energy = self.energy_init + self.len_interval * \
-            cumsum * self.terminals[0].power_var
-        constr = [
-            self.terminals[0].power_var >= -
-            self.discharge_max,
+        #cumsum = np.tril(np.ones((N, N)), 0)
+        self.energy = cvx.Variable(N + 1)
+        # self.energy_init + self.len_interval * \
+        #     cumsum * self.terminals[0].power_var
+        constr = []
+        for i in range(N):
+            constr.append(
+                self.energy[i + 1] == self.energy[i] - (self.len_interval * self.terminals[0].power_var[i]))
+        constr += [
+            self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
             self.energy <= self.energy_max,
             self.energy >= 0,
+            self.energy[0] == self.energy_init,
         ]
+
         if self.energy_final is not None:
             constr += [self.energy[-1] == self.energy_final]
         return constr
