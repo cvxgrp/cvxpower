@@ -1,7 +1,15 @@
-# Dynamic Energy Management [![Build Status](https://travis-ci.org/cvxgrp/dem.svg?branch=master)](https://travis-ci.org/cvxgrp/dem)
+# `cvxpower`
 
-Dynamic energment management (DEM) provides a framework for managing the energy
-produced and consumed by a network of devices.
+A library for static, dynamic, uncertain, and robust optimization of power networks, implementing the models from the (upcoming) paper
 
-For more details and code examples see
-[energy-management.readthedocs.io](http://energy-management.readthedocs.io/)
+```
+@article{MBBW:18,
+    author       = {N. Moehle and E. Busseti and S. Boyd and M. Wytock},
+    title        = {Dynamic Energy Management},
+    journal      = {Pre-print},
+    url          = {https://web.stanford.edu/~boyd/papers/dyn_ener_man.html},
+}
+```
+
+
+See the [examples](https://github.com/cvxgrp/cvxpower/tree/master/examples) for basic usage, or the (outdated) [documentation](http://energy-management.readthedocs.io/).
