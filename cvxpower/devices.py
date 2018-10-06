@@ -373,7 +373,8 @@ class Storage(Device):
     """
 
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
-                 energy_final=None, energy_max=None, name=None, len_interval=1.):
+                 energy_final=None, energy_max=None, name=None, len_interval=1.,
+                 final_energy_price=None):
         super(Storage, self).__init__([Terminal()], name)
         self.discharge_max = discharge_max
         self.charge_max = charge_max
@@ -381,26 +382,35 @@ class Storage(Device):
         self.energy_max = energy_max
         self.energy_final = energy_final
         self.len_interval = len_interval  # in hours
+        self.final_energy_price = final_energy_price
+        self.energy = None
+
+    @property
+    def cost(self):
+        T, S = self.terminals[0].power_var.shape
+        if self.final_energy_price is not None:
+            if self.energy is None:
+                self.energy = cvx.Variable(self.terminals[0].power_var.shape)
+            cost = np.zeros((T-1, S))
+            final_cost = cvx.reshape(self.energy[-1, :] * self.final_energy_price[0, 0], (1, S))
+            cost = cvx.vstack([cost, final_cost])
+        else:
+            cost = np.zeros(T, S)
+        return cost
 
     @property
     def constraints(self):
-        N = self.terminals[0].power_var.shape[0]
-        #cumsum = np.tril(np.ones((N, N)), 0)
-        self.energy = cvx.Variable(N + 1)
-        # self.energy_init + self.len_interval * \
-        #     cumsum * self.terminals[0].power_var
-        constr = []
-        for i in range(N):
-            constr.append(
-                self.energy[i + 1] == self.energy[i] - (self.len_interval * self.terminals[0].power_var[i]))
-        constr += [
+        P = self.terminals[0].power_var
+        if self.energy is None:
+            self.energy = cvx.Variable(self.terminals[0].power_var.shape)
+        constr = [
+            cvx.diff(self.energy.T) == P[1:, :] * self.len_interval,
+            self.energy[0, :] - self.energy_init[0, 0] - P[0, :] * self.len_interval == 0,
             self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
             self.energy <= self.energy_max,
             self.energy >= 0,
-            self.energy[0] == self.energy_init,
         ]
-
         if self.energy_final is not None:
-            constr += [self.energy[-1] == self.energy_final]
+            constr += [self.energy[-1] >= self.energy_final]
         return constr
