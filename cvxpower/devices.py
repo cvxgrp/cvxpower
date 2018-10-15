@@ -68,6 +68,7 @@ class Generator(Device):
             power_init=0,
             alpha=0,
             beta=0,
+            gamma=0,
             name=None,
             len_interval=1):
         super(Generator, self).__init__([Terminal()], name)
@@ -78,12 +79,13 @@ class Generator(Device):
         self.power_init = power_init
         self.alpha = alpha
         self.beta = beta
+        self.gamma = gamma
         self.len_interval = len_interval  # in hours
 
     @property
     def cost(self):
         p = self.terminals[0].power_var
-        return self.alpha * cvx.square(p) - self.beta * p
+        return self.alpha * cvx.square(p) - self.beta * p + self.gamma
 
     @property
     def constraints(self):
@@ -123,6 +125,10 @@ class FixedLoad(Device):
     @property
     def constraints(self):
         return [self.terminals[0].power_var == self.power]
+        #if self.terminals[0].power_var.shape[1] == 1:
+        #    return [self.terminals[0].power_var[:, 0] == self.power]
+        #else:
+        #    return [self.terminals[0].power_var == self.power]
 
 
 class ThermalLoad(Device):
@@ -245,7 +251,7 @@ class CurtailableLoad(Device):
 
     @property
     def cost(self):
-        return self.alpha * cvx.pos(self.power - self.terminals[0].power_var)
+        return np.matrix(self.alpha) * cvx.pos(self.power - self.terminals[0].power_var)
 
 
 class DeferrableLoad(Device):
@@ -278,18 +284,19 @@ class DeferrableLoad(Device):
     """
 
     def __init__(self, energy=0, power_max=None, time_start=0, time_end=None,
-                 name=None):
+                 name=None, len_interval=1.):
         super(DeferrableLoad, self).__init__([Terminal()], name)
         self.time_start = time_start
         self.time_end = time_end
         self.energy = energy
         self.power_max = power_max
+        self.len_interval = len_interval
 
     @property
     def constraints(self):
         idx = slice(self.time_start, self.time_end)
         return [
-            cvx.sum(self.terminals[0].power_var[idx]) >= self.energy,
+            cvx.sum(self.terminals[0].power_var[idx]) * self.len_interval == self.energy,
             self.terminals[0].power_var >= 0,
             self.terminals[0].power_var <= self.power_max,
         ]
@@ -318,21 +325,26 @@ class TransmissionLine(Device):
     :type name: string
     """
 
-    def __init__(self, power_max=None, name=None):
+    def __init__(self, alpha=0., power_max=None, name=None):
         super(TransmissionLine, self).__init__([Terminal(), Terminal()], name)
         self.power_max = power_max
+        self.alpha = alpha
+        assert self.alpha >= 0
 
     @property
     def constraints(self):
-        constrs = [
-            self.terminals[0].power_var + self.terminals[1].power_var == 0,
-        ]
+        p1 = self.terminals[0].power_var
+        p2 = self.terminals[1].power_var
 
-        if self.power_max is not None:
-            constrs += [
-                (cvx.abs((self.terminals[0].power_var -
-                          self.terminals[1].power_var) / 2) <= self.power_max)
-            ]
+        constrs = []
+        if self.alpha > 0:
+            constrs += [p1 + p2 >= self.alpha*cvx.square((p1 - p2)/2)]
+            if self.power_max is not None:
+                constrs += [2*self.alpha*self.power_max**2 >= p1 + p2]
+        else:
+            constrs += [p1 + p2 == 0]
+            if self.power_max is not None:
+                constrs += [cvx.abs((p1 - p2) / 2) <= self.power_max]
 
         return constrs
 
@@ -403,9 +415,10 @@ class Storage(Device):
         P = self.terminals[0].power_var
         if self.energy is None:
             self.energy = cvx.Variable(self.terminals[0].power_var.shape)
+        e_init = cvx.reshape(self.energy_init, ())
         constr = [
             cvx.diff(self.energy.T) == P[1:, :] * self.len_interval,
-            self.energy[0, :] - self.energy_init[0, 0] - P[0, :] * self.len_interval == 0,
+            self.energy[0, :] - e_init - P[0, :] * self.len_interval == 0,
             self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
             self.energy <= self.energy_max,
@@ -414,3 +427,50 @@ class Storage(Device):
         if self.energy_final is not None:
             constr += [self.energy[-1] >= self.energy_final]
         return constr
+
+
+#class CompositeDevice(Device):
+#    """A single device composed of multiple devices connected to a single net.
+#
+#
+#    The `CompositeDevice` device allows for creating a new devices composed of existing base
+#    devices or other groups.
+#
+#    :param devices: Internal devices to be included.
+#    :param net: Internal net the devices are connected to.
+#    :param name: (optional) Display name of the composite device.
+#    :type devices: list of :class:`Device`
+#    :type net: :class:`Net`
+#    :type terminals: list of :class:`Terminal`
+#    :type internal_terminal: the internal terminal connecting to the net.
+#    :type name: string
+#    """
+#
+#    def __init__(self, devices, net, name=None):
+#        super(CompositeDevice, self).__init__([Terminal()], name)
+#        self.internal_terminal = Terminal()
+#        net.terminals += [self.internal_terminal]
+#        self.devices = devices
+#        self.net = net
+#
+#    @property
+#    def cost(self):
+#        return cvx.sum([d.cost for d in self.devices])
+#
+#    @property
+#    def constraints(self):
+#        constr = [self.internal_terminal.power_var + self.terminals[0].power_var == 0]
+#        constr += sum([d.constraints for d in self.devices], [])
+#        return constr
+#
+#    def _init_problem(self, time_horizon, num_scenarios):
+#        """Initialize the network optimization problem.
+#
+#        :param time_horizon: The time horizon :math:`T` to optimize over.
+#        :param num_scenarios: The number of scenarios for robust MPC.
+#        :type time_horizon: int
+#        :type num_scenarios: int
+#        """
+#        super()._init_problem(time_horizon, num_scenarios)
+#        self.net._init_problem(time_horizon, num_scenarios)
+#        self.problem += self.net.problem

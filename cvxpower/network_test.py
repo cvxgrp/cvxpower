@@ -1,4 +1,3 @@
-
 import unittest
 
 from cvxpower import *
@@ -12,7 +11,7 @@ class ResultsTest(unittest.TestCase):
         net = Net([load.terminals[0], gen.terminals[0]])
         network = Group([load, gen], [net])
         network.init_problem()
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
         assert "optimal" in network.results.summary()
 
     def test_summary_infeasible(self):
@@ -21,7 +20,7 @@ class ResultsTest(unittest.TestCase):
         net = Net([load.terminals[0], gen.terminals[0]])
         network = Group([load, gen], [net])
         network.init_problem()
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
         assert "infeasible" in network.results.summary()
 
 
@@ -32,7 +31,7 @@ class DeviceTest(unittest.TestCase):
         gen = Generator(power_max=10)
         net = Net([load.terminals[0], gen.terminals[0]])
         network = Group([load, gen], [net])
-        network.optimize()
+        network.optimize(solver='ECOS')
 
 
 if __name__ == "__main__":

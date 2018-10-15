@@ -13,20 +13,19 @@ class StaticTest(unittest.TestCase):
         gen = Generator(power_max=1000, alpha=0.1, beta=100)
         net = Net([load.terminals[0], gen.terminals[0]])
         network = Group([load, gen], [net])
-        network.init_problem()
-        network.problem.solve()
-
+        network.optimize(solver='ECOS')
         np.testing.assert_allclose(load.terminals[0].power, 100)
         np.testing.assert_allclose(gen.terminals[0].power, -100)
         np.testing.assert_allclose(net.price, 120, rtol=1e-2)
+        np.testing.assert_allclose(load.terminals[0].payment, 12000, rtol=1e-2)
+        np.testing.assert_allclose(gen.terminals[0].payment, -12000, rtol=1e-2)
 
     def test_curtailable_load(self):
         load = CurtailableLoad(power=1000, alpha=150)
         gen = Generator(power_max=1000, alpha=1, beta=100)
         net = Net([load.terminals[0], gen.terminals[0]])
         network = Group([load, gen], [net])
-        network.init_problem()
-        network.problem.solve()
+        network.optimize(solver='ECOS')
 
         np.testing.assert_allclose(load.terminals[0].power, 25.00, rtol=1e-2)
         np.testing.assert_allclose(gen.terminals[0].power, -25, rtol=1e-2)
@@ -42,8 +41,7 @@ class StaticTest(unittest.TestCase):
         net2 = Net([gen2.terminals[0], line.terminals[1]])
 
         network = Group([load, gen1, gen2, line], [net1, net2])
-        network.init_problem()
-        network.problem.solve()
+        network.optimize(solver='ECOS')
 
         np.testing.assert_allclose(load.terminals[0].power, 100, rtol=1e-2)
         np.testing.assert_allclose(gen1.terminals[0].power, -50, rtol=1e-2)
@@ -70,8 +68,7 @@ class StaticTest(unittest.TestCase):
 
         network = Group([load1, load2, gen1, gen2, line1,
                          line2, line3], [net1, net2, net3])
-        network.init_problem()
-        network.problem.solve()
+        network.optimize(solver='ECOS')
 
         np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-2)
         np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-2)
@@ -101,7 +98,7 @@ class StaticTest(unittest.TestCase):
 
         network = Group([home, grid], [meter])
         network.init_problem()
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
 
         np.testing.assert_allclose(home.terminals[0].power,  3)
         np.testing.assert_allclose(grid.terminals[0].power, -3)
@@ -127,7 +124,7 @@ class StaticTest(unittest.TestCase):
         prob = network.problem
 
         line3.power_max.value = [50]
-        prob.solve()
+        prob.solve(solver='ECOS')
         np.testing.assert_allclose(load1.terminals[0].power,  50, rtol=1e-2)
         np.testing.assert_allclose(load2.terminals[0].power, 100, rtol=1e-2)
         np.testing.assert_allclose(gen1.terminals[0].power, -90, rtol=1e-2)
@@ -144,7 +141,7 @@ class StaticTest(unittest.TestCase):
         np.testing.assert_allclose(net3.price,   1.2000, rtol=1e-2)
 
         line3.power_max.value = [100]
-        prob.solve()
+        prob.solve(solver='ECOS')
         np.testing.assert_allclose(load1.terminals[0].power,   50, rtol=1e-2)
         np.testing.assert_allclose(load2.terminals[0].power,  100, rtol=1e-2)
         np.testing.assert_allclose(gen1.terminals[0].power,  -40, rtol=1e-2)
@@ -174,7 +171,7 @@ class DynamicTest(unittest.TestCase):
         network = Group([load, gen], [net])
 
         network.init_problem(time_horizon=T)
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
         np.testing.assert_allclose(load.terminals[0].power,  p_load, atol=1e-4)
         np.testing.assert_allclose(gen.terminals[0].power, -p_load, atol=1e-4)
         np.testing.assert_allclose(net.price, p_load * 200 + 100, rtol=1e-2)
@@ -187,7 +184,7 @@ class DynamicTest(unittest.TestCase):
         net = Net([load.terminals[0], gen.terminals[0], storage.terminals[0]])
         network = Group([load, gen, storage], [net])
         network.init_problem(time_horizon=T)
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
 
     def test_deferrable_load(self):
         load = FixedLoad(power=p_load)
@@ -198,7 +195,7 @@ class DynamicTest(unittest.TestCase):
                   0], deferrable.terminals[0]])
         network = Group([load, gen, deferrable], [net])
         network.init_problem(time_horizon=T)
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
 
     def test_thermal_load(self):
         temp_amb = (np.sin(np.pi * np.arange(T) / T) +
@@ -213,12 +210,66 @@ class DynamicTest(unittest.TestCase):
         net = Net([load.terminals[0], gen.terminals[0], thermal.terminals[0]])
         network = Group([load, gen, thermal], [net])
         network.init_problem(time_horizon=T)
-        network.problem.solve()
+        network.problem.solve(solver='ECOS')
 
-#
-# TODO(mwytock): Robust test cases
-#
 
+T = 10
+K = 2
+p_load0 = (np.sin(np.pi * np.arange(T) / T) + 1e-2).reshape(-1, 1)
+p_load1 = np.abs((np.cos(np.pi * np.arange(T) / T) + 1e-2)).reshape(-1, 1)
+p_load_robust = np.hstack([p_load0, p_load1])
+p_load_robust[0, 1] = p_load_robust[0, 0]
+
+
+class ScenarioTest(unittest.TestCase):
+
+    def test_dynamic_load(self):
+        load = FixedLoad(power=p_load_robust)
+        gen = Generator(power_max=2, power_min=-0.01, alpha=100, beta=100)
+        net = Net([load.terminals[0], gen.terminals[0]])
+        network = Group([load, gen], [net])
+
+        network.init_problem(time_horizon=T, num_scenarios=K)
+        network.problem.solve(solver='ECOS')
+        np.testing.assert_allclose(load.terminals[0].power,  p_load_robust, atol=1e-4)
+        np.testing.assert_allclose(gen.terminals[0].power, -p_load_robust, atol=1e-4)
+        np.testing.assert_allclose(net.price[:, 0], p_load_robust[:, 0] * 200 + 100, rtol=1e-2)
+
+    def test_storage(self):
+        load = FixedLoad(power=p_load_robust)
+        gen = Generator(power_max=2, alpha=100, beta=100)
+        storage = Storage(charge_max=0.1, discharge_max=0.1, energy_max=0.5)
+
+        net = Net([load.terminals[0], gen.terminals[0], storage.terminals[0]])
+        network = Group([load, gen, storage], [net])
+        network.init_problem(time_horizon=T, num_scenarios=K)
+        network.problem.solve(solver='ECOS')
+
+    def test_deferrable_load(self):
+        load = FixedLoad(power=p_load_robust)
+        gen = Generator(power_max=2, alpha=100, beta=100)
+        deferrable = DeferrableLoad(time_start=5, energy=0.5, power_max=0.1)
+
+        net = Net([load.terminals[0], gen.terminals[
+                  0], deferrable.terminals[0]])
+        network = Group([load, gen, deferrable], [net])
+        network.init_problem(time_horizon=T, num_scenarios=K)
+        network.problem.solve(solver='ECOS')
+
+    def test_thermal_load(self):
+        temp_amb = (np.sin(np.pi * np.arange(T) / T) +
+                    1e-2).reshape(-1, 1)**2 * 50 + 50
+
+        load = FixedLoad(power=p_load_robust)
+        gen = Generator(power_max=2, alpha=100, beta=100)
+        thermal = ThermalLoad(
+            temp_init=60, temp_amb=temp_amb, temp_max=90,
+            power_max=0.1, amb_conduct_coeff=0.1, efficiency=0.95, capacity=1)
+
+        net = Net([load.terminals[0], gen.terminals[0], thermal.terminals[0]])
+        network = Group([load, gen, thermal], [net])
+        network.init_problem(time_horizon=T, num_scenarios=K)
+        network.problem.solve(solver='ECOS')
 
 #
 # TODO(mwytock): MPC test cases

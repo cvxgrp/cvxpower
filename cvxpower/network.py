@@ -7,10 +7,12 @@ import tqdm
 
 def _get_all_terminals(device):
     """Gets all terminals, including those nested within child devices."""
-    if isinstance(device, Group):
-        return [t for d in device.devices for t in _get_all_terminals(d)]
-    else:
-        return device.terminals
+    terms = device.terminals
+    if hasattr(device, 'internal_terminal'):
+        terms += [device.internal_terminal]
+    if hasattr(device, 'devices'):
+        terms += [t for d in device.devices for t in _get_all_terminals(d)]
+    return terms
 
 
 class Terminal(object):
@@ -28,6 +30,12 @@ class Terminal(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self._power = cvx.Variable(shape=(time_horizon, num_scenarios))
+
+    def _set_payments(self, price):
+        if price is not None and self._power.value is not None:
+            self.payment = price * self._power.value
+        else:
+            self.payment = None
 
 
 class Net(object):
@@ -48,10 +56,15 @@ class Net(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.num_scenarios = num_scenarios
-        self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
-                            for k in range(num_scenarios)]
+        #self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
+        #                    for k in range(num_scenarios)]
+        self.constraints = [sum(t._power for t in self.terminals) / num_scenarios == 0]
 
         self.problem = cvx.Problem(cvx.Minimize(0), self.constraints)
+
+    def _set_payments(self):
+        for t in self.terminals:
+            t._set_payments(self.price)
 
     @property
     def results(self):
@@ -60,17 +73,20 @@ class Net(object):
     @property
     def price(self):
         """Price associated with this net."""
-        if (len(self.constraints) == 1 and
-                np.size(self.constraints[0].dual_value)) == 1:
-            return self.constraints[0].dual_value
-        # TODO(enzo) hardcoded 1/K probability
-        # return np.sum(constr.dual_value
-        #               for constr in self.constraints)
-        if self.num_scenarios > 1:
-            return np.matrix(np.sum([constr.dual_value[0]
-                                     for constr in self.constraints], 0))
-        return np.hstack(constr.dual_value.reshape(-1, 1)
-                         for constr in self.constraints)
+        return self.constraints[0].dual_value
+        #print([c.dual_value for c in self.constraints])
+        #raise
+        #if (len(self.constraints) == 1 and
+        #        np.size(self.constraints[0].dual_value)) == 1:
+        #    return self.constraints[0].dual_value
+        ## TODO(enzo) hardcoded 1/K probability
+        ## return np.sum(constr.dual_value
+        ##               for constr in self.constraints)
+        #if self.num_scenarios > 1:
+        #    return np.matrix(np.sum([constr.dual_value[0]
+        #                             for constr in self.constraints], 0))
+        #return np.hstack(constr.dual_value.reshape(-1, 1)
+        #                 for constr in self.constraints)
 
 
 class Device(object):
@@ -114,6 +130,8 @@ class Device(object):
         """
         status = self.problem.status if self.problem else None
         return Results(power={(self, i): t.power
+                              for i, t in enumerate(self.terminals)},
+                       payments={(self, i): t.payment
                               for i, t in enumerate(self.terminals)},
                        status=status)
 
@@ -170,6 +188,8 @@ class Group(Device):
 
     @property
     def results(self):
+        for n in self.nets:
+            n._set_payments()
         results = sum(x.results for x in self.devices + self.nets)
         results.status = self.problem.status if self.problem else None
         return results
@@ -183,12 +203,20 @@ class Group(Device):
 
         self.problem = sum(x.problem for x in self.devices + self.nets)
 
+    #def optimize(self, **kwargs):
+    #    super(Group, self).optimize(**kwargs)
+    #    for n in self.nets:
+    #        n._set_payments
+    #    raise
+        
+
 
 class Results(object):
     """Network optimization results."""
 
-    def __init__(self, power=None, price=None, status=None):
+    def __init__(self, power=None, payments=None, price=None, status=None):
         self.power = power if power else {}
+        self.payments = payments if payments else {}
         self.price = price if price else {}
         self.status = status
 
@@ -199,11 +227,14 @@ class Results(object):
         if other == 0:
             return self
         power = self.power.copy()
+        payments = self.payments.copy()
         price = self.price.copy()
+
         power.update(other.power)
+        payments.update(other.payments)
         price.update(other.price)
         status = self.status if self.status is not None else other.status
-        return Results(power, price, status)
+        return Results(power, payments, price, status)
 
     def __str__(self):
         return self.summary()
@@ -216,6 +247,7 @@ class Results(object):
 
         :rtype: str
         """
+
         retval = "Status: " + self.status if self.status else "none"
         if self.status != cvx.OPTIMAL:
             return retval
@@ -223,15 +255,35 @@ class Results(object):
         retval += "\n"
         retval += "%-20s %10s\n" % ("Terminal", "Power")
         retval += "%-20s %10s\n" % ("--------", "-----")
+        averages = False
         for device_terminal, value in self.power.items():
             label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
-            retval += "%-20s %10.4f\n" % (label, value)
+            if isinstance(value, np.ndarray):
+                value = np.mean(value)
+                averages = True
+            retval += "%-20s %10.2f\n" % (label, value)
 
         retval += "\n"
         retval += "%-20s %10s\n" % ("Net", "Price")
         retval += "%-20s %10s\n" % ("---", "-----")
         for net, value in self.price.items():
+            if isinstance(value, np.ndarray):
+                value = np.mean(value)
             retval += "%-20s %10.4f\n" % (net.name, value)
+
+        retval += "\n"
+        retval += "%-20s %10s\n" % ("Device", "Payment")
+        retval += "%-20s %10s\n" % ("------", "-------")
+        device_payments = {d[0][0]: 0 for d in self.payments.items()}
+        for device_terminal, value in self.payments.items():
+            if isinstance(value, np.ndarray):
+                value = np.mean(value)
+            device_payments[device_terminal[0]] += value
+        for d in device_payments.keys():
+            retval += "%-20s %10.2f\n" % (d.name, device_payments[d])
+
+        if averages:
+            retval += "\nAll values above are averages over the time horizon.\n"
 
         return retval
 
@@ -243,25 +295,16 @@ class Results(object):
 
         ax[0].set_ylabel("power")
         for device_terminal, value in self.power.items():
-            # if print_terminals:
             label = "%s[%d]" % (device_terminal[0].name,
                                 device_terminal[1])
-            # else:
-            #    label = device_terminal[0].name
-            # pd.Series(value.A1 if 'A1' in dir(value) else value,
-            #          index=index).plot(ax=ax[0], label=label)
             if index is None:
                 ax[0].plot(value, label=label)
             else:
                 ax[0].plot(index, value, label=label)
         ax[0].legend(loc="best")
-        # suppress xticks (enzo)
-        # ax[0].xaxis.set_major_locator(plt.NullLocator())
 
         ax[1].set_ylabel("price")
         for net, value in self.price.items():
-            # pd.Series(value.A1 if 'A1' in dir(value) else value,
-            #          index=index).plot(ax=ax[1], label=net.name)
             if index is None:
                 ax[1].plot(value, label=net.name)
             else:
@@ -279,7 +322,7 @@ def _update_mpc_results(t, time_steps, results_t, results_mpc):
 
 
 class OptimizationError(Exception):
-    """Error due to infeasibility or numerical problems during optimziation."""
+    """Error due to infeasibility or numerical problems during optimization."""
     pass
 
 
