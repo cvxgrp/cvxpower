@@ -249,7 +249,7 @@ class Results(object):
         """
 
         retval = "Status: " + self.status if self.status else "none"
-        if self.status != cvx.OPTIMAL:
+        if not self.status in {cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE}:
             return retval
 
         retval += "\n"
@@ -277,13 +277,13 @@ class Results(object):
         device_payments = {d[0][0]: 0 for d in self.payments.items()}
         for device_terminal, value in self.payments.items():
             if isinstance(value, np.ndarray):
-                value = np.mean(value)
+                value = np.sum(value)
             device_payments[device_terminal[0]] += value
         for d in device_payments.keys():
             retval += "%-20s %10.2f\n" % (d.name, device_payments[d])
 
         if averages:
-            retval += "\nAll values above are averages over the time horizon.\n"
+            retval += "\nPower and price are averages over the time horizon. Payment is total.\n"
 
         return retval
 
