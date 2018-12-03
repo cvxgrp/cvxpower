@@ -125,7 +125,8 @@ class FixedLoad(Device):
     @property
     def constraints(self):
         if self.terminals[0].power_var.shape[1] == 1:
-            return [self.terminals[0].power_var[:, 0] == self.power]
+            p = self.power[:, 0] if self.power.ndim == 2 else self.power
+            return [self.terminals[0].power_var[:, 0] == p]
         else:
             return [self.terminals[0].power_var == self.power]
 
