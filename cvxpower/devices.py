@@ -124,11 +124,11 @@ class FixedLoad(Device):
 
     @property
     def constraints(self):
-        return [self.terminals[0].power_var == self.power]
-        #if self.terminals[0].power_var.shape[1] == 1:
-        #    return [self.terminals[0].power_var[:, 0] == self.power]
-        #else:
-        #    return [self.terminals[0].power_var == self.power]
+        if self.terminals[0].power_var.shape[1] == 1:
+            p = self.power[:, 0] if self.power.ndim == 2 else self.power
+            return [self.terminals[0].power_var[:, 0] == p]
+        else:
+            return [self.terminals[0].power_var == self.power]
 
 
 class ThermalLoad(Device):
