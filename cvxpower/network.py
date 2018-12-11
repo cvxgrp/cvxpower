@@ -56,9 +56,10 @@ class Net(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.num_scenarios = num_scenarios
-        #self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
+        # self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
         #                    for k in range(num_scenarios)]
-        self.constraints = [sum(t._power for t in self.terminals) / num_scenarios == 0]
+        self.constraints = [
+            sum(t._power for t in self.terminals) / num_scenarios == 0]
 
         self.problem = cvx.Problem(cvx.Minimize(0), self.constraints)
 
@@ -75,17 +76,17 @@ class Net(object):
         """Price associated with this net."""
         return self.constraints[0].dual_value
         #print([c.dual_value for c in self.constraints])
-        #raise
-        #if (len(self.constraints) == 1 and
+        # raise
+        # if (len(self.constraints) == 1 and
         #        np.size(self.constraints[0].dual_value)) == 1:
         #    return self.constraints[0].dual_value
-        ## TODO(enzo) hardcoded 1/K probability
-        ## return np.sum(constr.dual_value
-        ##               for constr in self.constraints)
-        #if self.num_scenarios > 1:
+        # TODO(enzo) hardcoded 1/K probability
+        # return np.sum(constr.dual_value
+        # for constr in self.constraints)
+        # if self.num_scenarios > 1:
         #    return np.matrix(np.sum([constr.dual_value[0]
         #                             for constr in self.constraints], 0))
-        #return np.hstack(constr.dual_value.reshape(-1, 1)
+        # return np.hstack(constr.dual_value.reshape(-1, 1)
         #                 for constr in self.constraints)
 
 
@@ -132,7 +133,7 @@ class Device(object):
         return Results(power={(self, i): t.power
                               for i, t in enumerate(self.terminals)},
                        payments={(self, i): t.payment
-                              for i, t in enumerate(self.terminals)},
+                                 for i, t in enumerate(self.terminals)},
                        status=status)
 
     def _init_problem(self, time_horizon, num_scenarios):
@@ -203,12 +204,11 @@ class Group(Device):
 
         self.problem = sum(x.problem for x in self.devices + self.nets)
 
-    #def optimize(self, **kwargs):
+    # def optimize(self, **kwargs):
     #    super(Group, self).optimize(**kwargs)
     #    for n in self.nets:
     #        n._set_payments
     #    raise
-        
 
 
 class Results(object):
@@ -319,6 +319,9 @@ def _update_mpc_results(t, time_steps, results_t, results_mpc):
         results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
     for key, val in results_t.price.items():
         results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
+    for key, val in results_t.payments.items():
+        results_mpc.payments.setdefault(
+            key, np.empty(time_steps))[t] = val[0, 0]
 
 
 class OptimizationError(Exception):
@@ -357,15 +360,17 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
 
     """
     total_cost = 0.
-    problem = device.problem
     results = Results()
+    T_MPC = device
     for t in tqdm.trange(time_steps):
         predict(t)
-        problem.solve(**kwargs)
-        if problem.status != cvx.OPTIMAL:
+
+        device.init_problem(time_horizon=1)
+        device.problem.solve(**kwargs)
+        if device.problem.status != cvx.OPTIMAL:
             # temporary
             raise OptimizationError(
-                "failed at iteration %d, %s" % (t, problem.status))
+                "failed at iteration %d, %s" % (t, device.problem.status))
         stage_cost = sum([device.cost[0, 0]
                           for device in device.devices]).value
         #print('at time %s, adding cost %f' % (t, stage_cost))
