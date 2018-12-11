@@ -256,7 +256,14 @@ class Results(object):
         retval += "%-20s %10s\n" % ("Terminal", "Power")
         retval += "%-20s %10s\n" % ("--------", "-----")
         averages = False
-        for device_terminal, value in self.power.items():
+
+        powers = [p for p in self.power.items()]
+        print(type(powers))
+        names = [dt[0].name for dt, _ in powers]
+        idx = np.argsort(names)
+        print(type(idx))
+        powers = [powers[idx[i]] for i in range(len(powers))]
+        for device_terminal, value in powers:
             label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
             if isinstance(value, np.ndarray):
                 value = np.mean(value)
@@ -294,7 +301,13 @@ class Results(object):
         fig, ax = plt.subplots(nrows=2, ncols=1, **kwargs)
 
         ax[0].set_ylabel("power")
-        for device_terminal, value in self.power.items():
+
+        powers = [p for p in self.power.items()]
+        names = [dt[0].name for dt, _ in powers]
+        idx = np.argsort(names)
+        print(idx)
+        powers = [powers[idx[i]] for i in range(len(powers))]
+        for device_terminal, value in powers:
             label = "%s[%d]" % (device_terminal[0].name,
                                 device_terminal[1])
             if index is None:
@@ -315,6 +328,7 @@ class Results(object):
 
 
 def _update_mpc_results(t, time_steps, results_t, results_mpc):
+    results_mpc.status = results_t.status
     for key, val in results_t.power.items():
         results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
     for key, val in results_t.price.items():
@@ -362,7 +376,7 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
     for t in tqdm.trange(time_steps):
         predict(t)
         problem.solve(**kwargs)
-        if problem.status != cvx.OPTIMAL:
+        if not problem.status in {cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE}:
             # temporary
             raise OptimizationError(
                 "failed at iteration %d, %s" % (t, problem.status))

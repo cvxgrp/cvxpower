@@ -401,6 +401,7 @@ class Storage(Device):
     def cost(self):
         T, S = self.terminals[0].power_var.shape
         if self.final_energy_price is not None:
+            assert T > 1
             if self.energy is None:
                 self.energy = cvx.Variable(self.terminals[0].power_var.shape)
             cost = np.zeros((T-1, S))
