@@ -333,6 +333,8 @@ def _update_mpc_results(t, time_steps, results_t, results_mpc):
         results_mpc.power.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
     for key, val in results_t.price.items():
         results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
+    for key, val in results_t.payments.items():
+        results_mpc.payments.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
 
 
 class OptimizationError(Exception):
