@@ -361,11 +361,11 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
     """
     total_cost = 0.
     results = Results()
-    T_MPC = device
+    #T_MPC = device
     for t in tqdm.trange(time_steps):
         predict(t)
 
-        device.init_problem(time_horizon=1)
+        # device.init_problem(time_horizon=1)
         device.problem.solve(**kwargs)
         if device.problem.status != cvx.OPTIMAL:
             # temporary
