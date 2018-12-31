@@ -1,6 +1,6 @@
 # `cvxpower`
 
-A library for static, dynamic, uncertain, and robust optimization of power networks, implementing the models from the (upcoming) paper
+A library for static, dynamic, uncertain, and robust optimization of power networks, implementing the models from our [paper](https://web.stanford.edu/~boyd/papers/dyn_ener_man.html)
 
 ```
 @article{MBBW:18,
