@@ -74,19 +74,6 @@ class Net(object):
     def price(self):
         """Price associated with this net."""
         return self.constraints[0].dual_value
-        #print([c.dual_value for c in self.constraints])
-        #raise
-        #if (len(self.constraints) == 1 and
-        #        np.size(self.constraints[0].dual_value)) == 1:
-        #    return self.constraints[0].dual_value
-        ## TODO(enzo) hardcoded 1/K probability
-        ## return np.sum(constr.dual_value
-        ##               for constr in self.constraints)
-        #if self.num_scenarios > 1:
-        #    return np.matrix(np.sum([constr.dual_value[0]
-        #                             for constr in self.constraints], 0))
-        #return np.hstack(constr.dual_value.reshape(-1, 1)
-        #                 for constr in self.constraints)
 
 
 class Device(object):
@@ -258,10 +245,8 @@ class Results(object):
         averages = False
 
         powers = [p for p in self.power.items()]
-        print(type(powers))
         names = [dt[0].name for dt, _ in powers]
         idx = np.argsort(names)
-        print(type(idx))
         powers = [powers[idx[i]] for i in range(len(powers))]
         for device_terminal, value in powers:
             label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
@@ -305,7 +290,6 @@ class Results(object):
         powers = [p for p in self.power.items()]
         names = [dt[0].name for dt, _ in powers]
         idx = np.argsort(names)
-        print(idx)
         powers = [powers[idx[i]] for i in range(len(powers))]
         for device_terminal, value in powers:
             label = "%s[%d]" % (device_terminal[0].name,
@@ -373,18 +357,19 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
 
     """
     total_cost = 0.
-    problem = device.problem
+    #device.init_problem(remaining_horizon, num_scenarios)
     results = Results()
     for t in tqdm.trange(time_steps):
         predict(t)
-        problem.solve(**kwargs)
-        if not problem.status in {cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE}:
+        #remaining_horizon = np.minimum(horizon, time_steps - t)
+        #remaining_horizon = horizon
+        device.problem.solve(**kwargs)
+        if not device.problem.status in {cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE}:
             # temporary
             raise OptimizationError(
-                "failed at iteration %d, %s" % (t, problem.status))
+                "failed at iteration %d, %s" % (t, device.problem.status))
         stage_cost = sum([device.cost[0, 0]
                           for device in device.devices]).value
-        #print('at time %s, adding cost %f' % (t, stage_cost))
         total_cost += stage_cost
         execute(t)
         _update_mpc_results(t, time_steps, device.results, results)

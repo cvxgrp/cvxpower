@@ -124,11 +124,14 @@ class FixedLoad(Device):
 
     @property
     def constraints(self):
-        if self.terminals[0].power_var.shape[1] == 1:
-            p = self.power[:, 0] if self.power.ndim == 2 else self.power
-            return [self.terminals[0].power_var[:, 0] == p]
-        else:
-            return [self.terminals[0].power_var == self.power]
+        if isinstance(self.power, np.ndarray):
+            self.power = np.reshape(self.power, (self.power.size, 1))
+        return [self.terminals[0].power_var == self.power]
+        #if self.terminals[0].power_var.shape[1] == 1:
+        #    p = self.power[:, 0] if self.power.ndim == 2 else self.power
+        #    return [self.terminals[0].power_var[:, 0] == p]
+        #else:
+        #    return [self.terminals[0].power_var == self.power]
 
 
 class ThermalLoad(Device):
@@ -386,7 +389,7 @@ class Storage(Device):
 
     def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
                  energy_final=None, energy_max=None, name=None, len_interval=1.,
-                 final_energy_price=None):
+                 final_energy_price=None, final_time=None):
         super(Storage, self).__init__([Terminal()], name)
         self.discharge_max = discharge_max
         self.charge_max = charge_max
@@ -395,6 +398,7 @@ class Storage(Device):
         self.energy_final = energy_final
         self.len_interval = len_interval  # in hours
         self.final_energy_price = final_energy_price
+        self.final_time = final_time
         self.energy = None
 
     @property
@@ -426,5 +430,8 @@ class Storage(Device):
             self.energy >= 0,
         ]
         if self.energy_final is not None:
-            constr += [self.energy[-1] >= self.energy_final]
+            if self.final_time is None:
+                constr += [self.energy[-1] >= self.energy_final]
+            elif self.final_time > 0:
+                constr += [self.energy[self.final_time - 1] >= self.energy_final]
         return constr
