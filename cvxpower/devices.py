@@ -12,8 +12,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-Code written before January 2019 is Licensed under the Apache License, 
-Version 2.0 (the "License");
+Code written by Nicholas Moehle before January 2019 is licensed
+under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
