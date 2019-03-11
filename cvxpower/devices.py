@@ -1,4 +1,33 @@
-r"""Device models for dynamic energy management.
+"""
+Copyright (C) Matt Wytock, Enzo Busseti, Nicholas Moehle, 2016-2019.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+Code written before January 2019 is Licensed under the Apache License, 
+Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+
+__doc__ = r"""Device models for dynamic energy management.
 
 Each device has one or more terminals each of which has associated with it a
 vector representing power consumption or generation. Formally, we denote this
@@ -126,7 +155,7 @@ class FixedLoad(Device):
     def constraints(self):
         if self.terminals[0].power_var.shape[1] == 1:
             p = self.power[:, 0] if (not np.isscalar(self.power) and
-            self.power.ndim == 2)  else self.power
+                                     self.power.ndim == 2) else self.power
             return [self.terminals[0].power_var[:, 0] == p]
         else:
             return [self.terminals[0].power_var == self.power]
@@ -297,7 +326,8 @@ class DeferrableLoad(Device):
     def constraints(self):
         idx = slice(self.time_start, self.time_end)
         return [
-            cvx.sum(self.terminals[0].power_var[idx]) * self.len_interval == self.energy,
+            cvx.sum(self.terminals[0].power_var[idx]) *
+            self.len_interval == self.energy,
             self.terminals[0].power_var >= 0,
             self.terminals[0].power_var <= self.power_max,
         ]
@@ -339,9 +369,9 @@ class TransmissionLine(Device):
 
         constrs = []
         if self.alpha > 0:
-            constrs += [p1 + p2 >= self.alpha*cvx.square((p1 - p2)/2)]
+            constrs += [p1 + p2 >= self.alpha * cvx.square((p1 - p2) / 2)]
             if self.power_max is not None:
-                constrs += [2*self.alpha*self.power_max**2 >= p1 + p2]
+                constrs += [2 * self.alpha * self.power_max**2 >= p1 + p2]
         else:
             constrs += [p1 + p2 == 0]
             if self.power_max is not None:
@@ -404,8 +434,9 @@ class Storage(Device):
         if self.final_energy_price is not None:
             if self.energy is None:
                 self.energy = cvx.Variable(self.terminals[0].power_var.shape)
-            cost = np.zeros((T-1, S))
-            final_cost = cvx.reshape(self.energy[-1, :] * self.final_energy_price[0, 0], (1, S))
+            cost = np.zeros((T - 1, S))
+            final_cost = cvx.reshape(
+                self.energy[-1, :] * self.final_energy_price[0, 0], (1, S))
             cost = cvx.vstack([cost, final_cost])
         else:
             cost = np.zeros(T, S)
