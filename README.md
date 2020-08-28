@@ -4,8 +4,8 @@ A library for static, dynamic, uncertain, and robust optimization of power netwo
 
 ```
 @incollection{MBBW:18,
-    author       = {N. Moehle and E. Busseti and S. Boyd and M. Wytock},
-    title        = {Dynamic Energy Management},
+    author={N. Moehle and E. Busseti and S. Boyd and M. Wytock},
+    title={Dynamic Energy Management},
     booktitle={Large Scale Optimization in Supply Chains and Smart Manufacturing},
     pages={69--126},
     year={2019},
