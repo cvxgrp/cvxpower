@@ -167,7 +167,7 @@ class Device(object):
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.problem = cvx.Problem(
-            cvx.Minimize(cvx.sum(cvx.sum(self.cost, axis=1)) / num_scenarios),
+            cvx.Minimize(cvx.sum(self.cost) / num_scenarios),
             # TODO(enzo) we should weight by probs
             self.constraints +
             [terminal._power[0, k] == terminal._power[0, 0]
