@@ -89,17 +89,18 @@ class Generator(Device):
     """
 
     def __init__(
-            self,
-            power_min=None,
-            power_max=None,
-            ramp_min=None,
-            ramp_max=None,
-            power_init=0,
-            alpha=0,
-            beta=0,
-            gamma=0,
-            name=None,
-            len_interval=1):
+        self,
+        power_min=None,
+        power_max=None,
+        ramp_min=None,
+        ramp_max=None,
+        power_init=0,
+        alpha=0,
+        beta=0,
+        gamma=0,
+        name=None,
+        len_interval=1,
+    ):
         super(Generator, self).__init__([Terminal()], name)
         self.power_min = power_min
         self.power_max = power_max
@@ -154,8 +155,11 @@ class FixedLoad(Device):
     @property
     def constraints(self):
         if self.terminals[0].power_var.shape[1] == 1:
-            p = self.power[:, 0] if (not np.isscalar(self.power) and
-                                     self.power.ndim == 2) else self.power
+            p = (
+                self.power[:, 0]
+                if (not np.isscalar(self.power) and self.power.ndim == 2)
+                else self.power
+            )
             return [self.terminals[0].power_var[:, 0] == p]
         else:
             return [self.terminals[0].power_var == self.power]
@@ -205,13 +209,18 @@ class ThermalLoad(Device):
     :type capacity: float or sequence of floats
     """
 
-    def __init__(self,
-                 temp_init=None, temp_min=None, temp_max=None, temp_amb=None,
-                 power_max=None,
-                 amb_conduct_coeff=None,
-                 efficiency=None,
-                 capacity=None,
-                 name=None):
+    def __init__(
+        self,
+        temp_init=None,
+        temp_min=None,
+        temp_max=None,
+        temp_amb=None,
+        power_max=None,
+        amb_conduct_coeff=None,
+        efficiency=None,
+        capacity=None,
+        name=None,
+    ):
         super(ThermalLoad, self).__init__([Terminal()], name)
         self.temp_init = temp_init
         self.temp_min = temp_min
@@ -242,9 +251,12 @@ class ThermalLoad(Device):
         for i in range(N):
             temp_prev = self.temp[i - 1] if i else self.temp_init
             constrs += [
-                self.temp[i] == (
-                    temp_prev + alpha * (self.temp_amb[i] - temp_prev) -
-                    beta * self.terminals[0].power_var[i])
+                self.temp[i]
+                == (
+                    temp_prev
+                    + alpha * (self.temp_amb[i] - temp_prev)
+                    - beta * self.terminals[0].power_var[i]
+                )
             ]
 
         return constrs
@@ -281,7 +293,7 @@ class CurtailableLoad(Device):
 
     @property
     def cost(self):
-        return np.matrix(self.alpha) * cvx.pos(self.power - self.terminals[0].power_var)
+        return self.alpha * cvx.pos(self.power - self.terminals[0].power_var)
 
 
 class DeferrableLoad(Device):
@@ -313,8 +325,15 @@ class DeferrableLoad(Device):
     :type name: string
     """
 
-    def __init__(self, energy=0, power_max=None, time_start=0, time_end=None,
-                 name=None, len_interval=1.):
+    def __init__(
+        self,
+        energy=0,
+        power_max=None,
+        time_start=0,
+        time_end=None,
+        name=None,
+        len_interval=1.0,
+    ):
         super(DeferrableLoad, self).__init__([Terminal()], name)
         self.time_start = time_start
         self.time_end = time_end
@@ -326,8 +345,8 @@ class DeferrableLoad(Device):
     def constraints(self):
         idx = slice(self.time_start, self.time_end)
         return [
-            cvx.sum(self.terminals[0].power_var[idx]) *
-            self.len_interval == self.energy,
+            cvx.sum(self.terminals[0].power_var[idx]) * self.len_interval
+            == self.energy,
             self.terminals[0].power_var >= 0,
             self.terminals[0].power_var <= self.power_max,
         ]
@@ -356,7 +375,7 @@ class TransmissionLine(Device):
     :type name: string
     """
 
-    def __init__(self, alpha=0., power_max=None, name=None):
+    def __init__(self, alpha=0.0, power_max=None, name=None):
         super(TransmissionLine, self).__init__([Terminal(), Terminal()], name)
         self.power_max = power_max
         self.alpha = alpha
@@ -371,7 +390,7 @@ class TransmissionLine(Device):
         if self.alpha > 0:
             constrs += [p1 + p2 >= self.alpha * cvx.square((p1 - p2) / 2)]
             if self.power_max is not None:
-                constrs += [2 * self.alpha * self.power_max**2 >= p1 + p2]
+                constrs += [2 * self.alpha * self.power_max ** 2 >= p1 + p2]
         else:
             constrs += [p1 + p2 == 0]
             if self.power_max is not None:
@@ -415,9 +434,17 @@ class Storage(Device):
     :type name: string
     """
 
-    def __init__(self, discharge_max=0, charge_max=None, energy_init=0,
-                 energy_final=None, energy_max=None, name=None, len_interval=1.,
-                 final_energy_price=None):
+    def __init__(
+        self,
+        discharge_max=0,
+        charge_max=None,
+        energy_init=0,
+        energy_final=None,
+        energy_max=None,
+        name=None,
+        len_interval=1.0,
+        final_energy_price=None,
+    ):
         super(Storage, self).__init__([Terminal()], name)
         self.discharge_max = discharge_max
         self.charge_max = charge_max
@@ -436,7 +463,8 @@ class Storage(Device):
                 self.energy = cvx.Variable(self.terminals[0].power_var.shape)
             cost = np.zeros((T - 1, S))
             final_cost = cvx.reshape(
-                self.energy[-1, :] * self.final_energy_price[0, 0], (1, S))
+                self.energy[-1, :] * self.final_energy_price[0, 0], (1, S)
+            )
             cost = cvx.vstack([cost, final_cost])
         else:
             cost = np.zeros(T, S)

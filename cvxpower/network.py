@@ -37,9 +37,9 @@ import tqdm
 def _get_all_terminals(device):
     """Gets all terminals, including those nested within child devices."""
     terms = device.terminals
-    if hasattr(device, 'internal_terminal'):
+    if hasattr(device, "internal_terminal"):
         terms += [device.internal_terminal]
-    if hasattr(device, 'devices'):
+    if hasattr(device, "devices"):
         terms += [t for d in device.devices for t in _get_all_terminals(d)]
     return terms
 
@@ -87,8 +87,7 @@ class Net(object):
         self.num_scenarios = num_scenarios
         # self.constraints = [sum(t._power[:, k] for t in self.terminals) == 0
         #                    for k in range(num_scenarios)]
-        self.constraints = [
-            sum(t._power for t in self.terminals) / num_scenarios == 0]
+        self.constraints = [sum(t._power for t in self.terminals) / num_scenarios == 0]
 
         self.problem = cvx.Problem(cvx.Minimize(0), self.constraints)
 
@@ -104,7 +103,7 @@ class Net(object):
     def price(self):
         """Price associated with this net."""
         return self.constraints[0].dual_value
-        #print([c.dual_value for c in self.constraints])
+        # print([c.dual_value for c in self.constraints])
         # raise
         # if (len(self.constraints) == 1 and
         #        np.size(self.constraints[0].dual_value)) == 1:
@@ -142,7 +141,7 @@ class Device(object):
 
         :rtype: cvxpy expression of size :math:`T \times K`
         """
-        return np.matrix(0.0)
+        return np.zeros((1, 1))
 
     @property
     def constraints(self):
@@ -159,21 +158,25 @@ class Device(object):
         :rtype: :class:`Results`
         """
         status = self.problem.status if self.problem else None
-        return Results(power={(self, i): t.power
-                              for i, t in enumerate(self.terminals)},
-                       payments={(self, i): t.payment
-                                 for i, t in enumerate(self.terminals)},
-                       status=status)
+        return Results(
+            power={(self, i): t.power for i, t in enumerate(self.terminals)},
+            payments={(self, i): t.payment for i, t in enumerate(self.terminals)},
+            status=status,
+        )
 
     def _init_problem(self, time_horizon, num_scenarios):
         self.problem = cvx.Problem(
             cvx.Minimize(cvx.sum(self.cost) / num_scenarios),
             # TODO(enzo) we should weight by probs
-            self.constraints +
-            [terminal._power[0, k] == terminal._power[0, 0]
-             for terminal in self.terminals
-             for k in range(1, terminal._power.shape[1] if
-                            len(terminal._power.shape) > 1 else 0)])
+            self.constraints
+            + [
+                terminal._power[0, k] == terminal._power[0, 0]
+                for terminal in self.terminals
+                for k in range(
+                    1, terminal._power.shape[1] if len(terminal._power.shape) > 1 else 0
+                )
+            ],
+        )
 
     def init_problem(self, time_horizon=1, num_scenarios=1):
         """Initialize the network optimization problem.
@@ -324,8 +327,7 @@ class Results(object):
 
         ax[0].set_ylabel("power")
         for device_terminal, value in self.power.items():
-            label = "%s[%d]" % (device_terminal[0].name,
-                                device_terminal[1])
+            label = "%s[%d]" % (device_terminal[0].name, device_terminal[1])
             if index is None:
                 ax[0].plot(value, label=label)
             else:
@@ -349,12 +351,12 @@ def _update_mpc_results(t, time_steps, results_t, results_mpc):
     for key, val in results_t.price.items():
         results_mpc.price.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
     for key, val in results_t.payments.items():
-        results_mpc.payments.setdefault(
-            key, np.empty(time_steps))[t] = val[0, 0]
+        results_mpc.payments.setdefault(key, np.empty(time_steps))[t] = val[0, 0]
 
 
 class OptimizationError(Exception):
     """Error due to infeasibility or numerical problems during optimization."""
+
     pass
 
 
@@ -388,9 +390,9 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
     :raise: :class:`OptimizationError`
 
     """
-    total_cost = 0.
+    total_cost = 0.0
     results = Results()
-    #T_MPC = device
+    # T_MPC = device
     for t in tqdm.trange(time_steps):
         predict(t)
 
@@ -399,10 +401,10 @@ def run_mpc(device, time_steps, predict, execute, **kwargs):
         if device.problem.status != cvx.OPTIMAL:
             # temporary
             raise OptimizationError(
-                "failed at iteration %d, %s" % (t, device.problem.status))
-        stage_cost = sum([device.cost[0, 0]
-                          for device in device.devices]).value
-        #print('at time %s, adding cost %f' % (t, stage_cost))
+                "failed at iteration %d, %s" % (t, device.problem.status)
+            )
+        stage_cost = sum([device.cost[0, 0] for device in device.devices]).value
+        # print('at time %s, adding cost %f' % (t, stage_cost))
         total_cost += stage_cost
         execute(t)
         _update_mpc_results(t, time_steps, device.results, results)

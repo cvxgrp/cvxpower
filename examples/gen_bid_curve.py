@@ -3,6 +3,7 @@
 import cvxpy as cvx
 from dem import *
 
+
 class GeneratorWithBidCurve(Generator):
     """Generators with cost function specified by bid curve.
 
@@ -13,6 +14,7 @@ class GeneratorWithBidCurve(Generator):
     where a_i is the price for bid curve segment i and b_i is the appropriate
     offset, depending on previous segments.
     """
+
     def __init__(self, no_load_cost=0, bid_curve=[], name=None):
         super(GeneratorWithBidCurve, self).__init__(name=name)
         self.no_load_cost = no_load_cost
@@ -28,12 +30,13 @@ class GeneratorWithBidCurve(Generator):
             if prev_power is None:
                 offset = self.no_load_cost
             else:
-                offset += (power - prev_power)*prev_price
-            segments.append(price*(p - power) + offset)
+                offset += (power - prev_power) * prev_price
+            segments.append(price * (p - power) + offset)
             prev_power = power
             prev_price = price
 
         return cvx.max_elemwise(*segments)
+
 
 gen = GeneratorWithBidCurve(
     no_load_cost=290.42,
@@ -46,7 +49,9 @@ gen = GeneratorWithBidCurve(
         (45.6, 22.53),
         (48.8, 22.87),
         (51.9, 23.22),
-        (55, 23.6)])
+        (55, 23.6),
+    ],
+)
 load = FixedLoad(power=43)
 net = Net([gen.terminals[0], load.terminals[0]])
 
