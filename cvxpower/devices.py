@@ -477,7 +477,7 @@ class Storage(Device):
             self.energy = cvx.Variable(self.terminals[0].power_var.shape)
         e_init = cvx.reshape(self.energy_init, ())
         constr = [
-            cvx.diff(self.energy.T) == P[1:, :] * self.len_interval,
+            cvx.diff(self.energy) == P[1:, :] * self.len_interval,
             self.energy[0, :] - e_init - P[0, :] * self.len_interval == 0,
             self.terminals[0].power_var >= -self.discharge_max,
             self.terminals[0].power_var <= self.charge_max,
